@@ -1,0 +1,92 @@
+[
+  {
+    "id": "tt-001",
+    "question": "Malazgirt Meydan Muharebesi hangi yılda gerçekleşmiştir?",
+    "options": ["1071", "1299", "1453", "1923"],
+    "correctAnswer": 0,
+    "explanation": "26 Ağustos 1071'de Sultan Alparslan komutasındaki Büyük Selçuklu ordusu Bizans'ı yenerek Anadolu'nun kapılarını Türklere açmıştır.",
+    "category": "turk-tarihi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tt-002",
+    "question": "İstanbul'u fetheden Osmanlı Padişahı kimdir?",
+    "options": ["Yavuz Sultan Selim", "Fatih Sultan Mehmet", "Kanuni Sultan Süleyman", "Yıldırım Bayezid"],
+    "correctAnswer": 1,
+    "explanation": "29 Mayıs 1453'te II. Mehmet (Fatih Sultan Mehmet) İstanbul'u fethederek Doğu Roma İmparatorluğu'na son vermiştir.",
+    "category": "turk-tarihi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tt-003",
+    "question": "Türkiye Büyük Millet Meclisi hangi tarihte açılmıştır?",
+    "options": ["19 Mayıs 1919", "23 Nisan 1920", "30 Ağustos 1922", "29 Ekim 1923"],
+    "correctAnswer": 1,
+    "explanation": "TBMM, 23 Nisan 1920 tarihinde Ankara'da dualarla açılmıştır.",
+    "category": "turk-tarihi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tt-004",
+    "question": "Mustafa Kemal Paşa Milli Mücadele'yi başlatmak üzere ne zaman Samsun'a çıkmıştır?",
+    "options": ["19 Mayıs 1919", "23 Nisan 1920", "29 Ekim 1923", "30 Ağustos 1922"],
+    "correctAnswer": 0,
+    "explanation": "19 Mayıs 1919'da Bandırma Vapuru ile Samsun'a çıkan Mustafa Kemal Paşa Türk Kurtuluş Savaşı'nı başlatmıştır.",
+    "category": "turk-tarihi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tt-005",
+    "question": "Osmanlı İmparatorluğu'nun ilk başkenti neresidir?",
+    "options": ["Bursa", "Edirne", "Söğüt", "İstanbul"],
+    "correctAnswer": 2,
+    "explanation": "Osmanlı Beyliği ilk olarak Söğüt merkezli kurulmuş, ardından Bursa ve Edirne başkent yapılmıştır.",
+    "category": "turk-tarihi",
+    "difficulty": "normal"
+  },
+  {
+    "id": "tt-006",
+    "question": "Çanakkale Zaferi hangi yılda elde edilmiştir?",
+    "options": ["1911", "1915", "1918", "1921"],
+    "correctAnswer": 1,
+    "explanation": "Çanakkale Deniz ve Kara Savaşları 1915 yılında Türk ordusunun destansı zaferiyle sonuçlanmıştır.",
+    "category": "turk-tarihi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tt-007",
+    "question": "Tarihte bilinen ilk Türk devleti hangisidir?",
+    "options": ["Göktürk Devleti", "Asya Hun Devleti", "Uygur Devleti", "Avar Devleti"],
+    "correctAnswer": 1,
+    "explanation": "Tarihte bilinen teşkilatlı ilk Türk devleti Teoman tarafından kurulan Asya Hun Devleti'dir.",
+    "category": "turk-tarihi",
+    "difficulty": "normal"
+  },
+  {
+    "id": "tt-008",
+    "question": "Orhun Abideleri hangi Türk devletine aittir?",
+    "options": ["II. Göktürk (Kutluk) Devleti", "Uygur Devleti", "Karahanlılar", "Gazneliler"],
+    "correctAnswer": 0,
+    "explanation": "Orhun Yazıtları, 8. yüzyılda II. Göktürk Devleti döneminde dikilmiş ilk Türkçe yazılı belgelerdir.",
+    "category": "turk-tarihi",
+    "difficulty": "normal"
+  },
+  {
+    "id": "tt-009",
+    "question": "Osmanlı Devleti'nde ilk kâğıt para (Kaime) hangi padişah döneminde basılmıştır?",
+    "options": [" Sultan Abdülmecid", "II. Mahmud", "III. Selim", "Sultan Abdülaziz"],
+    "correctAnswer": 0,
+    "explanation": "İlk Osmanlı kâğıt parası 'Kaime-i Mutebere-i Nakdiyye' 1840 yılında Sultan Abdülmecid döneminde basılmıştır.",
+    "category": "turk-tarihi",
+    "difficulty": "hard"
+  },
+  {
+    "id": "tt-010",
+    "question": "Büyük Taarruz ve Başkomutanlık Meydan Muharebesi zaferle sonuçlanan tarih hangisidir?",
+    "options": ["30 Ağustos 1922", "19 Mayıs 1919", "29 Ekim 1923", "9 Eylül 1922"],
+    "correctAnswer": 0,
+    "explanation": "30 Ağustos 1922'de Dumlupınar'da Başkomutanlık Meydan Muharebesi kazanılarak Zafer Bayramı olarak ilan edilmiştir.",
+    "category": "turk-tarihi",
+    "difficulty": "easy"
+  }
+]

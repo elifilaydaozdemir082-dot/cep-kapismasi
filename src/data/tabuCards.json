@@ -1,0 +1,177 @@
+[
+  {
+    "id": 1,
+    "word": "FUTBOL",
+    "category": "spor",
+    "categoryName": "Spor",
+    "forbidden": ["Top", "Gol", "Kale", "Maç", "Saha"]
+  },
+  {
+    "id": 2,
+    "word": "BİLGİSAYAR",
+    "category": "teknoloji",
+    "categoryName": "Teknoloji",
+    "forbidden": ["Ekran", "Klavye", "Fare", "İnternet", "Kasa"]
+  },
+  {
+    "id": 3,
+    "word": "ZÜRAFA",
+    "category": "hayvanlar",
+    "categoryName": "Hayvanlar",
+    "forbidden": ["Boyun", "Uzun", "Afrika", "Sarı", "Benek"]
+  },
+  {
+    "id": 4,
+    "word": "LAHMACUN",
+    "category": "yiyecek",
+    "categoryName": "Yiyecek",
+    "forbidden": ["Kıyma", "Hamur", "Maydanoz", "Limon", "Fırın"]
+  },
+  {
+    "id": 5,
+    "word": "İSTANBUL",
+    "category": "sehirler",
+    "categoryName": "Şehirler",
+    "forbidden": ["Boğaz", "Köprü", "Deniz", "Kalabalık", "Türkiye"]
+  },
+  {
+    "id": 6,
+    "word": "ŞELALE",
+    "category": "doga",
+    "categoryName": "Doğa",
+    "forbidden": ["Su", "Yüksek", "Dökülmek", "Dere", "Doğa"]
+  },
+  {
+    "id": 7,
+    "word": "DOKTOR",
+    "category": "meslekler",
+    "categoryName": "Meslekler",
+    "forbidden": ["Hasta", "Hastane", "İlaç", "Muayene", "Beyaz Gömlek"]
+  },
+  {
+    "id": 8,
+    "word": "TELEFON",
+    "category": "teknoloji",
+    "categoryName": "Teknoloji",
+    "forbidden": ["Arama", "Mesaj", "Akıllı", "Mobil", "Ekran"]
+  },
+  {
+    "id": 9,
+    "word": "BASKETBOL",
+    "category": "spor",
+    "categoryName": "Spor",
+    "forbidden": ["Pota", "Sayı", "NBA", "File", "Panyaya"]
+  },
+  {
+    "id": 10,
+    "word": "BAKLAVA",
+    "category": "yiyecek",
+    "categoryName": "Yiyecek",
+    "forbidden": ["Şerbet", "Fıstık", "Ceviz", "Yufka", "Tatlı"]
+  },
+  {
+    "id": 11,
+    "word": "ANKARA",
+    "category": "sehirler",
+    "categoryName": "Şehirler",
+    "forbidden": ["Başkent", "Anıtkabir", "Kızılay", "Türkiye", "İç Anadolu"]
+  },
+  {
+    "id": 12,
+    "word": "ORMAN",
+    "category": "doga",
+    "categoryName": "Doğa",
+    "forbidden": ["Ağaç", "Yeşil", "Yaprak", "Yaban", "Doğa"]
+  },
+  {
+    "id": 13,
+    "word": "MÜHENDİS",
+    "category": "meslekler",
+    "categoryName": "Meslekler",
+    "forbidden": ["Proje", "Tasarım", "İnşaat", "Yazılım", "Diploma"]
+  },
+  {
+    "id": 14,
+    "word": "ASLAN",
+    "category": "hayvanlar",
+    "categoryName": "Hayvanlar",
+    "forbidden": ["Kral", "Orman", "Yele", "Kükremek", "Kedi"]
+  },
+  {
+    "id": 15,
+    "word": "ŞEMSİYE",
+    "category": "gunluk",
+    "categoryName": "Günlük Hayat",
+    "forbidden": ["Yağmur", "Islanmak", "Açmak", "Rüzgar", "Su"]
+  },
+  {
+    "id": 16,
+    "word": "ROBOT",
+    "category": "teknoloji",
+    "categoryName": "Teknoloji",
+    "forbidden": ["Mekanik", "Yapay Zeka", "Kendi Kendine", "Metal", "Kod"]
+  },
+  {
+    "id": 17,
+    "word": "YÜZME",
+    "category": "spor",
+    "categoryName": "Spor",
+    "forbidden": ["Su", "Havuz", "Deniz", "Kulaç", "Bone"]
+  },
+  {
+    "id": 18,
+    "word": "ÇİKOLATA",
+    "category": "yiyecek",
+    "categoryName": "Yiyecek",
+    "forbidden": ["Kakao", "Sütlü", "Bitter", "Tatlı", "Paket"]
+  },
+  {
+    "id": 19,
+    "word": "İZMİR",
+    "category": "sehirler",
+    "categoryName": "Şehirler",
+    "forbidden": ["Ege", "Saat Kulesi", "Boyoz", "Kordon", "Deniz"]
+  },
+  {
+    "id": 20,
+    "word": "YANARDAĞ",
+    "category": "doga",
+    "categoryName": "Doğa",
+    "forbidden": ["Lav", "Volkan", "Patlama", "Ateş", "Magma"]
+  },
+  {
+    "id": 21,
+    "word": "AŞÇI",
+    "category": "meslekler",
+    "categoryName": "Meslekler",
+    "forbidden": ["Yemek", "Mutfak", "Şapka", "Restoran", "Pişirmek"]
+  },
+  {
+    "id": 22,
+    "word": "PENGUEN",
+    "category": "hayvanlar",
+    "categoryName": "Hayvanlar",
+    "forbidden": ["Kutup", "Buz", "Uçamaz", "Kuş", "Siyah Beyaz"]
+  },
+  {
+    "id": 23,
+    "word": "SAAT",
+    "category": "gunluk",
+    "categoryName": "Günlük Hayat",
+    "forbidden": ["Zaman", "Kordon", "Zelzele", "Yelkovan", "Akrep"]
+  },
+  {
+    "id": 24,
+    "word": "PİZZA",
+    "category": "yiyecek",
+    "categoryName": "Yiyecek",
+    "forbidden": ["İtalya", "Dilim", "Peynir", "Sucuk", "Hamur"]
+  },
+  {
+    "id": 25,
+    "word": "GÜNEŞ",
+    "category": "doga",
+    "categoryName": "Doğa",
+    "forbidden": ["Sıcak", "Sarı", "Gündüz", "Işık", "Yıldız"]
+  }
+]

@@ -1,0 +1,272 @@
+[
+  {
+    "id": "gk-001",
+    "question": "Türkiye Cumhuriyeti'nin ilk Cumhurbaşkanı kimdir?",
+    "options": ["Mustafa Kemal Atatürk", "İsmet İnönü", "Celal Bayar", "Fevzi Çakmak"],
+    "correctAnswer": 0,
+    "explanation": "Mustafa Kemal Atatürk, 29 Ekim 1923'te Cumhuriyetin ilanıyla Türkiye Cumhuriyeti'nin ilk Cumhurbaşkanı seçilmiştir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-002",
+    "question": "Dünyanın en yüksek dağı hangisidir?",
+    "options": ["K2 Dağı", "Everest Dağı", "Kilimanjaro Dağı", "Alpler"],
+    "correctAnswer": 1,
+    "explanation": "Himalayalarda yer alan Everest Dağı, deniz seviyesinden 8.848 metre yüksekliğiyle dünyanın en yüksek dağıdır.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-003",
+    "question": "Mona Lisa tablosu hangi ünlü ressama aittir?",
+    "options": ["Pablo Picasso", "Vincent van Gogh", "Leonardo da Vinci", "Salvador Dali"],
+    "correctAnswer": 2,
+    "explanation": "Mona Lisa, İtalyan Rönesans ustası Leonardo da Vinci tarafından 16. yüzyılda yapılmıştır.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-004",
+    "question": "İstiklal Marşı'mızın şairi kimdir?",
+    "options": ["Mehmet Akif Ersoy", "Yahya Kemal Beyatlı", "Namık Kemal", "Ziya Gökalp"],
+    "correctAnswer": 0,
+    "explanation": "Mehmet Akif Ersoy, 12 Mart 1921'de kabul edilen İstiklal Marşı'mızın yazarıdır.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-005",
+    "question": "Suyun kimyasal formülü nedir?",
+    "options": ["CO2", "H2O", "NaCl", "O2"],
+    "correctAnswer": 1,
+    "explanation": "Su molekülü iki hidrojen ve bir oksijen atomundan oluşur (H2O).",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-006",
+    "question": "Osmanlı İmparatorluğu'nun kurucusu kimdir?",
+    "options": ["Ertuğrul Gazi", "Osman Bey", "Orhan Bey", "Fatih Sultan Mehmet"],
+    "correctAnswer": 1,
+    "explanation": "Osmanlı Devleti 1299 yılında Osman Bey tarafından kurulmuştur.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-007",
+    "question": "Kızıl Gezegen olarak bilinen gezegen hangisidir?",
+    "options": ["Venüs", "Mars", "Jüpiter", "Satürn"],
+    "correctAnswer": 1,
+    "explanation": "Yüzeyindeki demir oksit oranı nedeniyle kızıl göründüğü için Mars'a Kızıl Gezegen denir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-008",
+    "question": "Nobel Ödülleri hangi ülkede dağıtılmaya başlanmıştır?",
+    "options": ["İsveç", "Almanya", "İsviçre", "İngiltere"],
+    "correctAnswer": 0,
+    "explanation": "Nobel Ödülleri, İsveçli kimyager Alfred Nobel'in vasiyetiyle İsveç'te verilmeye başlanmıştır.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-009",
+    "question": "Dünyanın en uzun nehri hangisidir?",
+    "options": ["Amazon Nehri", "Nil Nehri", "Mississippi Nehri", "Tuna Nehri"],
+    "correctAnswer": 1,
+    "explanation": "Afrika kıtasında yer alan Nil Nehri yaklaşık 6.650 km uzunluğuyla en uzun nehirdir.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-010",
+    "question": "Satranç oyununda en güçlü taş hangisidir?",
+    "options": ["Kale", "Şah", "Vezir", "At"],
+    "correctAnswer": 2,
+    "explanation": "Vezir, hem kale hem de fil gibi her yöne istediği kadar hareket edebildiği için en güçlü taştır.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-011",
+    "question": "Avrupa Birliği'nin para birimi nedir?",
+    "options": ["Dolar", "Sterlin", "Euro", "Frank"],
+    "correctAnswer": 2,
+    "explanation": "Euro, AB üyesi birçok ülkenin resmi ortak para birimidir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-012",
+    "question": "Piramitleriyle ünlü antik uygarlık hangisidir?",
+    "options": ["Yunan", "Roma", "Mısır", "Sümer"],
+    "correctAnswer": 2,
+    "explanation": "Giza Piramitleri ve Sfenks antik Mısır uygarlığının simgeleridir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-013",
+    "question": "Güneş sistemindeki en büyük gezegen hangisidir?",
+    "options": ["Jüpiter", "Satürn", "Neptün", "Dünya"],
+    "correctAnswer": 0,
+    "explanation": "Jüpiter, kütle ve hacim olarak Güneş sistemimizin en büyük gezegenidir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-014",
+    "question": "Hangisi bir asal sayıdır?",
+    "options": ["9", "15", "17", "21"],
+    "correctAnswer": 2,
+    "explanation": "17 sayısı sadece 1'e ve kendisine bölünebildiği için asal sayıdır.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-015",
+    "question": "Anıtkabir hangi şehrimizdedir?",
+    "options": ["İstanbul", "Ankara", "İzmir", "Bursa"],
+    "correctAnswer": 1,
+    "explanation": "Mustafa Kemal Atatürk'ün anıt mekanı Anıtkabir Ankara'nın Çankaya ilçesindedir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-016",
+    "question": "Yerçekimi kanununu bulan ünlü bilim insanı kimdir?",
+    "options": ["Albert Einstein", "Isaac Newton", "Galileo Galilei", "Nikola Tesla"],
+    "correctAnswer": 1,
+    "explanation": "Sir Isaac Newton, kütle çekim kanununu ve hareket yasalarını tanımlamıştır.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-017",
+    "question": "Japonya'nın başkenti neresidir?",
+    "options": ["Pekin", "Seul", "Tokyo", "Bangkok"],
+    "correctAnswer": 2,
+    "explanation": "Tokyo, Japonya'nın başkenti ve en kalabalık şehridir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-018",
+    "question": "Hangi organımız vücuda kan pompalar?",
+    "options": ["Akciğer", "Karaciğer", "Kalp", "Böbrek"],
+    "correctAnswer": 2,
+    "explanation": "Kalp, kasılarak tüm damar ağına kan pompalayan hayati organımızdır.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-019",
+    "question": "Olimpiyat halkalarındaki renk sayısı kaçtır?",
+    "options": ["4", "5", "6", "7"],
+    "correctAnswer": 1,
+    "explanation": "Olimpiyat bayrağındaki 5 halka (mavi, sarı, siyah, yeşil, kırmızı) 5 kıtayı temsil eder.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-020",
+    "question": "Güneş ışığının Dünya'ya ulaşması yaklaşık ne kadar sürer?",
+    "options": ["8 saniye", "8 dakika", "8 saat", "8 gün"],
+    "correctAnswer": 1,
+    "explanation": "Güneş ile Dünya arasındaki mesafeyi ışık yaklaşık 8 dakika 20 saniyede kat eder.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-021",
+    "question": "Telefonu icat eden mucit kimdir?",
+    "options": ["Thomas Edison", "Alexander Graham Bell", "Guglielmo Marconi", "Nikola Tesla"],
+    "correctAnswer": 1,
+    "explanation": "Alexander Graham Bell 1876 yılında ilk pratik telefonu patentlemiştir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-022",
+    "question": "Dünyanın en küçük ülkesi hangisidir?",
+    "options": ["Monako", "Vatikan", "San Marino", "Lihteştayn"],
+    "correctAnswer": 1,
+    "explanation": "Vatikan, 0.49 km² yüzölçümü ile hem alan hem nüfus bakımından dünyanın en küçük bağımsız devletidir.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-023",
+    "question": "Titanik gemisi hangi yılda batmıştır?",
+    "options": ["1905", "1912", "1923", "1939"],
+    "correctAnswer": 1,
+    "explanation": "RMS Titanic gemisi 14 Nisan 1912 gecesi bir buzdağına çarparak batmıştır.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-024",
+    "question": "Periyodik cetveldeki 'Au' simgesi hangi elementi temsil eder?",
+    "options": ["Gümüş", "Altın", "Bakır", "Alüminyum"],
+    "correctAnswer": 1,
+    "explanation": "Au simgesi Latince 'Aurum' kelimesinden gelir ve Altın elementini temsil eder.",
+    "category": "genel-kultur",
+    "difficulty": "hard"
+  },
+  {
+    "id": "gk-025",
+    "question": "Hangi hayvan karada yaşayan en büyük memelidir?",
+    "options": ["Zürafa", "Afrika Fili", "Hipopotam", "Gergedan"],
+    "correctAnswer": 1,
+    "explanation": "Afrika Fili, karada yaşayan hayvanlar arasında kütlece en büyük memelidir.",
+    "category": "genel-kultur",
+    "difficulty": "easy"
+  },
+  {
+    "id": "gk-026",
+    "question": "Kutup ışıklarına verilen bilimsel ad nedir?",
+    "options": ["Aurora", "Meteor", "Galaksi", "Süpernova"],
+    "correctAnswer": 0,
+    "explanation": "Kutup bölgelerinde gökyüzünde ışık patlamaları oluşturan doğa olayına Aurora (Kutup Işıkları) denir.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-027",
+    "question": "Yeryüzündeki en sert doğal maden hangisidir?",
+    "options": ["Kuvars", "Elmas", "Yakut", "Safir"],
+    "correctAnswer": 1,
+    "explanation": "Elmas, Mohs sertlik skalasında 10 puan ile doğadaki en sert madendir.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-028",
+    "question": "İlk insanlı Ay yolculuğunu gerçekleştiren uzay aracı hangisidir?",
+    "options": ["Apollo 11", "Sputnik 1", "Challenger", "Voyager 1"],
+    "correctAnswer": 0,
+    "explanation": "Apollo 11 uzay aracıyla Neil Armstrong ve Buzz Aldrin 1969'da Ay'a ayak basmıştır.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-029",
+    "question": "İnsan vücudundaki en uzun kemik hangisidir?",
+    "options": ["Kaval kemiği", "Uyluk kemiği", "Omurga", "Pazu kemiği"],
+    "correctAnswer": 1,
+    "explanation": "Femur olarak da bilinen uyluk kemiği insan vücudundaki en uzun ve en güçlü kemiktir.",
+    "category": "genel-kultur",
+    "difficulty": "normal"
+  },
+  {
+    "id": "gk-030",
+    "question": "DNA'nın ikili sarmal yapısını keşfeden bilim insanları kimlerdir?",
+    "options": ["Watson ve Crick", "Pasteur ve Koch", "Curie ve Becquerel", "Darwin ve Mendel"],
+    "correctAnswer": 0,
+    "explanation": "James Watson ve Francis Crick 1953 yılında DNA'nın ikili sarmal modelini ortaya koymuşlardır.",
+    "category": "genel-kultur",
+    "difficulty": "hard"
+  }
+]

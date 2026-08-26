@@ -1,0 +1,62 @@
+[
+  {
+    "id": "go-001",
+    "question": "2024 Paris Yaz Olimpiyat Oyunları'nda Türkiye'ye tekvando branşında gümüş madalya kazandıran kadın sporcumuz kimdir?",
+    "options": ["Merve Dinçel Kavurat", "Hatice Kübra İlgün", "Yasemin Adar", "Buse Naz Çakıroğlu"],
+    "correctAnswer": 0,
+    "explanation": "Merve Dinçel Kavurat, 2024 Paris Olimpiyatları kadınlar 49 kg tekvando kategorisinde gümüş madalya kazanmıştır.",
+    "category": "guncel-olaylar",
+    "difficulty": "normal",
+    "createdAt": "2024-08-15",
+    "validUntil": "2028-08-01",
+    "sourceNote": "2024 Paris Olimpiyat Oyunları Resmi Sonuçları"
+  },
+  {
+    "id": "go-002",
+    "question": "2024 Paris Olimpiyat Oyunları'nda atıcılık branşında kulaksız ve gözlüksüz ikonik duruşuyla dünya gündemine oturan ve gümüş madalya kazanan Türk atıcı kimdir?",
+    "options": ["Yusuf Dikeç", "Şevval İlayda Tarhan", "İsmail Keleş", "Ömer Akgün"],
+    "correctAnswer": 0,
+    "explanation": "Yusuf Dikeç, 2024 Paris Olimpiyatları'nda 10m Havalı Tabanca Karışık Takım yarışında rahat duruşuyla tüm dünyada viral olmuştur.",
+    "category": "guncel-olaylar",
+    "difficulty": "easy",
+    "createdAt": "2024-08-05",
+    "validUntil": "2028-08-01",
+    "sourceNote": "IOC 2024 Atıcılık Sonuçları"
+  },
+  {
+    "id": "go-003",
+    "question": "Türkiye'nin ilk uzay yolcusu olarak Uluslararası Uzay İstasyonu'na (ISS) giden Türk astronot kimdir?",
+    "options": ["Alper Gezeravcı", "Tuva Cihangir Atasever", "Umut Yıldız", "Gökhan Yüksel"],
+    "correctAnswer": 0,
+    "explanation": "Alper Gezeravcı, Ocak 2024'te Axiom Mission 3 (Ax-3) uçuşuyla uzaya giden ilk Türk astronot olmuştur.",
+    "category": "guncel-olaylar",
+    "difficulty": "easy",
+    "createdAt": "2024-01-19",
+    "validUntil": "2030-12-31",
+    "sourceNote": "Türkiye Uzay Ajansı (TUA) Duyurusu"
+  },
+  {
+    "id": "go-004",
+    "question": "2024 EURO Avrupa Futbol Şampiyonası hangi ülkede düzenlenmiştir?",
+    "options": ["Almanya", "Fransa", "İngiltere", "İspanya"],
+    "correctAnswer": 0,
+    "explanation": "EURO 2024 Avrupa Futbol Şampiyonası 14 Haziran - 14 Temmuz 2024 tarihleri arasında Almanya'da düzenlenmiştir.",
+    "category": "guncel-olaylar",
+    "difficulty": "easy",
+    "createdAt": "2024-07-15",
+    "validUntil": "2028-06-01",
+    "sourceNote": "UEFA EURO 2024 Turnuva Özeti"
+  },
+  {
+    "id": "go-005",
+    "question": "2024 EURO Avrupa Futbol Şampiyonası'nda şampiyonluğa ulaşan milli takım hangisidir?",
+    "options": ["İspanya", "İngiltere", "Hollanda", "Fransa"],
+    "correctAnswer": 0,
+    "explanation": "İspanya, finalde İngiltere'yi 2-1 mağlup ederek EURO 2024 şampiyonu olmuştur.",
+    "category": "guncel-olaylar",
+    "difficulty": "normal",
+    "createdAt": "2024-07-15",
+    "validUntil": "2028-06-01",
+    "sourceNote": "UEFA EURO 2024 Final Raporu"
+  }
+]

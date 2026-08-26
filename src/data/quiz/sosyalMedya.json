@@ -1,0 +1,92 @@
+[
+  {
+    "id": "sm-001",
+    "question": "Sosyal medyada bir gönderinin önüne '#' işareti konularak etiketteme yapılmasına ne ad verilir?",
+    "options": ["Hashtag", "Mention", "DM", "Retweet"],
+    "correctAnswer": 0,
+    "explanation": "Hashtag (#), sosyal medya platformlarında konu başlığı etiketlemek için kullanılır.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-002",
+    "question": "İnternet dünyasında kısa ve mizahi olarak yayılan görsel veya videolara verilen isim nedir?",
+    "options": ["Meme (Caps)", "Vlog", "Podcast", "GIF"],
+    "correctAnswer": 0,
+    "explanation": "Meme (Türkçede Caps/Geyik), popüler kültürde internette hızla yayılan mizahi içeriklerdir.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-003",
+    "question": "Sesli sohbet yayını ve ses dosyası serilerine ne ad verilir?",
+    "options": ["Webinar", "Podcast", "Livestream", "Story"],
+    "correctAnswer": 1,
+    "explanation": "Podcast, internet üzerinden dinlenebilen dijital ses yayını veya programıdır.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-004",
+    "question": "Sosyal medya terimi olan 'DM' neyin kısaltmasıdır?",
+    "options": ["Direct Message", "Digital Media", "Daily Motion", "Data Mining"],
+    "correctAnswer": 0,
+    "explanation": "DM, kullanıcılar arasında özel olarak gönderilen Direkt Mesaj (Direct Message) anlamına gelir.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-005",
+    "question": "Hangi platform 24 saat sonra kaybolan 'Hikaye' (Story) özelliğini ilk olarak tanıtmıştır?",
+    "options": ["Instagram", "Snapchat", "Facebook", "TikTok"],
+    "correctAnswer": 1,
+    "explanation": "24 saatte kaybolan geçici hikaye formatını ilk olarak Snapchat ortaya çıkarmıştır.",
+    "category": "sosyal-medya",
+    "difficulty": "normal"
+  },
+  {
+    "id": "sm-006",
+    "question": "Bir web sitesinde veya uygulamada kullanıcının gerçek insan olduğunu doğrulamak için yapılan teste ne ad verilir?",
+    "options": ["CAPTCHA", "Cookie", "Firewall", "Algoritma"],
+    "correctAnswer": 0,
+    "explanation": "CAPTCHA, botları engellemek amacıyla kullanıcılara sorulan güvenlik doğrulama testidir.",
+    "category": "sosyal-medya",
+    "difficulty": "normal"
+  },
+  {
+    "id": "sm-007",
+    "question": "YouTube üzerinde video içerik üreten ve kanal yöneten kişilere ne ad verilir?",
+    "options": ["YouTuber", "Blogger", "Streamer", "Influencer"],
+    "correctAnswer": 0,
+    "explanation": "YouTube platformunda düzenli içerik yayınlayan kişilere YouTuber denir.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-008",
+    "question": "Bir görsel dosyasının kare kare hareketli halini ifade eden uzantı formatı hangisidir?",
+    "options": ["JPEG", "PNG", "GIF", "PDF"],
+    "correctAnswer": 2,
+    "explanation": "GIF (Graphics Interchange Format), kısa ve döngüsel hareketli görseller için kullanılır.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-009",
+    "question": "Sosyal medyada yüksek takipçi kitlesiyle kitleleri etkileyebilen kişilere ne denir?",
+    "options": ["Influencer", "Moderatör", "Webmaster", "Yazılımcı"],
+    "correctAnswer": 0,
+    "explanation": "Influencer, takipçilerinin satın alma veya düşünme eğilimlerini etkileyen dijital figürdür.",
+    "category": "sosyal-medya",
+    "difficulty": "easy"
+  },
+  {
+    "id": "sm-010",
+    "question": "Kullanıcıların panolara görsel fikirler topladığı ilham platformu hangisidir?",
+    "options": ["Pinterest", "Tumblr", "Reddit", "Medium"],
+    "correctAnswer": 0,
+    "explanation": "Pinterest, dekorasyon, moda ve tasarım fikirlerini panolara iğneleme platformudur.",
+    "category": "sosyal-medya",
+    "difficulty": "normal"
+  }
+]

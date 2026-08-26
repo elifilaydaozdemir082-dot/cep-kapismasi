@@ -1,0 +1,92 @@
+[
+  {
+    "id": "tc-001",
+    "question": "Türkiye'nin en yüksek dağı hangisidir?",
+    "options": ["Erciyes Dağı", "Ağrı Dağı", "Süphan Dağı", "Kaçkar Dağları"],
+    "correctAnswer": 1,
+    "explanation": "Ağrı Dağı, 5.137 metre yüksekliği ile Türkiye'nin en yüksek zirvesidir.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-002",
+    "question": "Türkiye'nin en büyük gölü hangisidir?",
+    "options": ["Tuz Gölü", "Van Gölü", "Beyşehir Gölü", "İznik Gölü"],
+    "correctAnswer": 1,
+    "explanation": "Van Gölü, 3.713 km² yüzölçümü ile Türkiye'nin en büyük gölüdür.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-003",
+    "question": "Türkiye sınırları içerisinden doğup denize dökülen en uzun nehir hangisidir?",
+    "options": ["Fırat Nehri", "Kızılırmak", "Yeşilırmak", "Seyhan"],
+    "correctAnswer": 1,
+    "explanation": "Kızılırmak, 1.355 km uzunluğu ile Türkiye sınırları içerisinde doğup yine Türkiye denizine dökülen en uzun nehirdir.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-004",
+    "question": "Türkiye kaç coğrafi bölgeye ayrılmıştır?",
+    "options": ["5", "6", "7", "8"],
+    "correctAnswer": 2,
+    "explanation": "Türkiye 1941 Birinci Coğrafya Kongresi kararları ile 7 coğrafi bölgeye ayrılmıştır.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-005",
+    "question": "Türkiye'nin yüzölçümü bakımından en büyük ili hangisidir?",
+    "options": ["İstanbul", "Ankara", "Konya", "Sivas"],
+    "correctAnswer": 2,
+    "explanation": "Konya, 40.838 km² alanıyla Türkiye'nin yüzölçümü en büyük ilidir.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-006",
+    "question": "Ege Bölgesi ile Marmara Bölgesi'ni ayıran boğaz hangisidir?",
+    "options": ["İstanbul Boğazı", "Çanakkale Boğazı", "Cebelitarık Boğazı", "Kerç Boğazı"],
+    "correctAnswer": 1,
+    "explanation": "Çanakkale Boğazı, Marmara Denizi ile Ege Denizi'ni birbirine bağlar.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-007",
+    "question": "Türkiye'nin en güneyindeki uç noktası hangi ilimizdedir?",
+    "options": ["Antalya", "Hatay", "Muğla", "Mersin"],
+    "correctAnswer": 1,
+    "explanation": "Türkiye'nin en güneydeki uç noktası Hatay ilinin Yayladağı ilçesindedir (Topraktutan köyü).",
+    "category": "turkiye-cografyasi",
+    "difficulty": "normal"
+  },
+  {
+    "id": "tc-008",
+    "question": "Pamukkale Travertenleri hangi ilimizde yer alır?",
+    "options": ["Aydın", "Denizli", "Muğla", "Afyonkarahisar"],
+    "correctAnswer": 1,
+    "explanation": "Pamukkale Travertenleri UNESCO Dünya Mirası listesinde olup Denizli ilimizdedir.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-009",
+    "question": "Peri Bacaları ile ünlü Kapadokya bölgesi ağırlıklı olarak hangi ilimizdedir?",
+    "options": ["Nevşehir", "Kayseri", "Aksaray", "Niğde"],
+    "correctAnswer": 0,
+    "explanation": "Kapadokya ve Peri Bacaları'nın merkezi Nevşehir ilimizdir.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "easy"
+  },
+  {
+    "id": "tc-010",
+    "question": "Türkiye'nin en fazla yağış alan ili hangisidir?",
+    "options": ["Trabzon", "Rize", "Artvin", "Giresun"],
+    "correctAnswer": 1,
+    "explanation": "Rize, yıllık ortalama 2.300 mm üzerindeki yağış miktarıyla Türkiye'nin en çok yağış alan ilidir.",
+    "category": "turkiye-cografyasi",
+    "difficulty": "normal"
+  }
+]

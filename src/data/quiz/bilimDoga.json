@@ -1,0 +1,92 @@
+[
+  {
+    "id": "bd-001",
+    "question": "Fotosentez yapabilen canlılar hangi gazı dışarı verirler?",
+    "options": ["Karbondioksit", "Oksijen", "Azot", "Metan"],
+    "correctAnswer": 1,
+    "explanation": "Bitkiler fotosentez esnasında karbondioksit ve su kullanarak besin üreterek atmosfere oksijen salarlar.",
+    "category": "bilim-doga",
+    "difficulty": "easy"
+  },
+  {
+    "id": "bd-002",
+    "question": "İnsan vücudundaki en büyük organ hangisidir?",
+    "options": ["Karaciğer", "Deri", "Beyin", "Akciğer"],
+    "correctAnswer": 1,
+    "explanation": "Deri, tüm vücudu kaplayan alan bakımından insan vücudundaki en büyük organdır.",
+    "category": "bilim-doga",
+    "difficulty": "easy"
+  },
+  {
+    "id": "bd-003",
+    "question": "Yerçekimi ivmesi Dünya yüzeyinde yaklaşık kaç m/s² olarak kabul edilir?",
+    "options": ["5.8 m/s²", "9.8 m/s²", "12.4 m/s²", "15.0 m/s²"],
+    "correctAnswer": 1,
+    "explanation": "Dünya yüzeyinde ortalama serbest düşme (yerçekimi) ivmesi yaklaşık 9.8 m/s² 'dir.",
+    "category": "bilim-doga",
+    "difficulty": "normal"
+  },
+  {
+    "id": "bd-004",
+    "question": "Işık hızı saniyede yaklaşık kaç kilometredir?",
+    "options": ["150.000 km", "300.000 km", "500.000 km", "1.000.000 km"],
+    "correctAnswer": 1,
+    "explanation": "Işık vakum ortamında saniyede yaklaşık 299.792 km (yaklaşık 300.000 km/s) hızla yayılır.",
+    "category": "bilim-doga",
+    "difficulty": "normal"
+  },
+  {
+    "id": "bd-005",
+    "question": "Hangi gezegen Güneş'e en yakındır?",
+    "options": ["Merkür", "Venüs", "Dünya", "Mars"],
+    "correctAnswer": 0,
+    "explanation": "Merkür, Güneş Sisteminde Güneş'e en yakın gezegendir.",
+    "category": "bilim-doga",
+    "difficulty": "easy"
+  },
+  {
+    "id": "bd-006",
+    "question": "Atomun merkezinde bulunan pozitif yüklü parçacık nedir?",
+    "options": ["Elektron", "Proton", "Nötron", "Foton"],
+    "correctAnswer": 1,
+    "explanation": "Proton pozitif yüklü, nötron yüksüz parçacıktır ve atom çekirdeğinde bulunur.",
+    "category": "bilim-doga",
+    "difficulty": "easy"
+  },
+  {
+    "id": "bd-007",
+    "question": "Dünyamızın atmosferinde en yüksek oranda bulunan gaz hangisidir?",
+    "options": ["Oksijen", "Karbondioksit", "Azot (Nitrojen)", "Helyum"],
+    "correctAnswer": 2,
+    "explanation": "Atmosferimizin yaklaşık %78'ini Azot (Nitrojen) gazı oluşturur.",
+    "category": "bilim-doga",
+    "difficulty": "easy"
+  },
+  {
+    "id": "bd-008",
+    "question": "Suyun donma noktası Celsius (°C) ölçeğinde kaçtır?",
+    "options": ["-10 °C", "0 °C", "32 °C", "100 °C"],
+    "correctAnswer": 1,
+    "explanation": "Deniz seviyesinde saf su 0 °C 'de donar ve 100 °C 'de kaynar.",
+    "category": "bilim-doga",
+    "difficulty": "easy"
+  },
+  {
+    "id": "bd-009",
+    "question": "Kendi etrafında en hızlı dönen gezegen hangisidir?",
+    "options": ["Dünya", "Jüpiter", "Satürn", "Venüs"],
+    "correctAnswer": 1,
+    "explanation": "Jüpiter kendi etrafındaki bir tam dönüşünü yaklaşık 9 saat 55 dakikada tamamlar.",
+    "category": "bilim-doga",
+    "difficulty": "normal"
+  },
+  {
+    "id": "bd-010",
+    "question": "Kanımızdaki kırmızı alyuvarlara rengini veren protein hangisidir?",
+    "options": ["İnsülin", "Hemoglobin", "Keratin", "Kollajen"],
+    "correctAnswer": 1,
+    "explanation": "Hemoglobin, oksijen taşıyan ve kana kırmızı rengini veren demir zengini proteindir.",
+    "category": "bilim-doga",
+    "difficulty": "normal"
+  }
+]
