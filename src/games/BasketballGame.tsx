@@ -94,9 +94,9 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     const containerWidth = rect ? rect.width : 360;
     const containerHeight = rect ? rect.height : 500;
 
-    // Target position percentages (Correct non-inverted direction mapping)
-    const targetX = Math.min(88, Math.max(12, 50 + (dx / containerWidth) * 130));
-    const targetY = Math.min(52, Math.max(12, 80 - (dy / containerHeight) * 125));
+    // Target position percentages (Aligned cleanly to visual hoop at X: 50%, Y: 36%)
+    const targetX = Math.min(88, Math.max(12, 50 + (dx / containerWidth) * 90));
+    const targetY = Math.min(65, Math.max(15, 80 - (dy / containerHeight) * 180));
 
     // Animate ball arc towards target
     setBallRotation(720);
@@ -109,23 +109,23 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   };
 
   const evaluateShot = (targetX: number, targetY: number) => {
-    // Hoop Rim Center is at X: 50%, Y: 22%
+    // Hoop Rim Center is aligned at X: 50%, Y: 36%
     const hoopX = 50;
-    const hoopY = 22;
+    const hoopY = 36;
     const distToHoop = Math.hypot(targetX - hoopX, targetY - hoopY);
 
     let pts = 0;
     let feedback = '';
 
-    if (distToHoop <= 3.2) {
+    if (distToHoop <= 5.2) {
       pts = 3;
       feedback = '🔥 SWISH! TEMİZ BASKET! (+3 PUAN)';
       setNetRipple(true);
-    } else if (distToHoop <= 5.8) {
+    } else if (distToHoop <= 9.5) {
       pts = 2;
       feedback = '🏀 BASKET! (+2 PUAN)';
       setNetRipple(true);
-    } else if (distToHoop <= 8.8) {
+    } else if (distToHoop <= 14.5) {
       feedback = '💥 PANYADAN/ÇEMBERDEN SEKTİ!';
       // Bounce off effect
       setBallPos((prev) => ({ x: prev.x > 50 ? prev.x + 8 : prev.x - 8, y: prev.y + 10 }));
