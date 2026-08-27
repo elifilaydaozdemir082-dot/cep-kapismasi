@@ -116,9 +116,9 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
     // Transition to 'shooting' using ref-synced updater
     updateShotPhase('shooting');
 
-    // Realistic Drag Physics Vector Mapping: Allow full range [4..96]% so over-aiming goes OUT, hitting posts is possible, and well-placed shots score!
-    const targetX = Math.min(96, Math.max(4, 50 + (dx / 2.4)));
-    const targetY = Math.min(75, Math.max(6, 75 - (dy / 2.6)));
+    // Realistic Drag Physics Vector Mapping: Natural swipe maps cleanly to goal center and corners [8..92]% x [14..65]%
+    const targetX = Math.min(92, Math.max(8, 50 + (dx / 3.2)));
+    const targetY = Math.min(65, Math.max(14, 80 - (dy / 2.85)));
 
     const ballTarget: Point2D = { x: targetX, y: targetY };
     previousShotsRef.current.push(ballTarget);

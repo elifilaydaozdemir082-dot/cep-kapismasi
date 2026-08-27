@@ -96,12 +96,12 @@ export function calculateShotOutcome(
   const { leftPostX, rightPostX, crossbarY, groundY } = GOAL_FRAME;
 
   // 1. Check Out of Bounds (Missed)
-  if (x < leftPostX - 4 || x > rightPostX + 4 || y < crossbarY - 4 || y > groundY + 10) {
+  if (x < leftPostX - 4 || x > rightPostX + 4 || y < crossbarY - 4 || y > groundY + 12) {
     return 'missed';
   }
 
   // 2. Check Goalkeeper Save First
-  const reachRadius = difficulty === 'easy' ? 12 : difficulty === 'normal' ? 15 : 18;
+  const reachRadius = difficulty === 'easy' ? 11 : difficulty === 'normal' ? 14 : 16;
   const dx = x - keeperPos.x;
   const dy = y - keeperPos.y;
   const distToGoalkeeper = Math.hypot(dx, dy);
@@ -119,12 +119,8 @@ export function calculateShotOutcome(
     return 'post';
   }
 
-  // 4. Inside Goal Frame -> GOAL!
-  if (x > leftPostX + 2.5 && x < rightPostX - 2.5 && y > crossbarY + 2.5 && y <= groundY + 4) {
-    return 'goal';
-  }
-
-  return 'missed';
+  // 4. Default: Inside Goal Frame -> GOAL!
+  return 'goal';
 }
 
 export function calculateShotScore(
