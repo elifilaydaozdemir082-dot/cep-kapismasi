@@ -72,7 +72,9 @@ export const storageService = {
 
     let isNewRecord = false;
 
-    if (!current) {
+    if (score <= 0 && !isLowerScoreBetter) {
+      isNewRecord = false;
+    } else if (!current) {
       isNewRecord = true;
     } else if (isLowerScoreBetter) {
       isNewRecord = score < current.score;
@@ -90,7 +92,7 @@ export const storageService = {
       return { isNewRecord: true, record: newRecord, medal: earnedMedal };
     }
 
-    return { isNewRecord: false, record: current, medal: earnedMedal };
+    return { isNewRecord: false, record: current || newRecord, medal: earnedMedal };
   },
 
   getMultiHistory(): MultiPlayerRecord[] {
