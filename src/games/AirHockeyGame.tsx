@@ -25,8 +25,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const p2ScoreRef = useRef<number>(0);
 
   // Paddles & Puck position state (% coords)
-  const [p1Paddle, setP1Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 82 });
-  const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 18 });
+  const [p1Paddle, setP1Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 80 });
+  const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 15 });
   const [puck, setPuck] = useState<{ x: number; y: number; vx: number; vy: number }>({
     x: 50,
     y: 50,
@@ -51,11 +51,33 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
   const isFinishedRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const p1PaddleRef = useRef<{ x: number; y: number }>({ x: 50, y: 82 });
+  const p1PaddleRef = useRef<{ x: number; y: number }>({ x: 50, y: 80 });
 
   useEffect(() => {
     p1PaddleRef.current = p1Paddle;
   }, [p1Paddle]);
+
+  // Global Pointer Event Listener for ZERO-LAG 1-to-1 Real Player Movement
+  useEffect(() => {
+    const handleGlobalPointerMove = (e: PointerEvent) => {
+      if (!containerRef.current || isFinishedRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+
+      // Normalize pointer coordinates relative to arena container
+      const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 5), 95);
+      const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 40), 95);
+
+      setP1Paddle({ x, y });
+    };
+
+    window.addEventListener('pointermove', handleGlobalPointerMove);
+    window.addEventListener('pointerdown', handleGlobalPointerMove);
+
+    return () => {
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
+      window.removeEventListener('pointerdown', handleGlobalPointerMove);
+    };
+  }, []);
 
   // Ability Cooldown Ticker
   useEffect(() => {
@@ -84,7 +106,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // 60FPS Game Physics Loop with Power-Ups & Responsive Teleport Controls
+  // 60FPS Game Physics Loop
   useEffect(() => {
     if (isFinishedRef.current) return;
 
@@ -99,26 +121,27 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       const arenaW = rect ? rect.width : 360;
       const arenaH = rect ? rect.height : 520;
 
-      // 1. Bot AI Logic (Frozen when Freeze Ability is Active)
+      // 1. Bot AI Logic (Slower, Predictable, Leaves Goal Mouth Open when Outsmarted)
       if (mode === 'single' && !isBotFrozen) {
         setP2Paddle((prev) => {
           const targetX = puck.x;
-          const targetY = puck.y < 50 ? Math.min(32, Math.max(14, puck.y - 4)) : 18;
+          const targetY = puck.y < 45 ? Math.min(25, Math.max(10, puck.y - 3)) : 14;
 
           const dx = targetX - prev.x;
           const dy = targetY - prev.y;
 
-          const speedX = 0.12;
-          const speedY = 0.10;
+          // Slower Bot Movement
+          const speedX = 0.09;
+          const speedY = 0.07;
 
           const newX = Math.min(Math.max(prev.x + dx * speedX, 15), 85);
-          const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 38);
+          const newY = Math.min(Math.max(prev.y + dy * speedY, 8), 28);
 
           return { x: newX, y: newY };
         });
       }
 
-      // 2. Puck Motion & Shield / Wall Collisions
+      // 2. Puck Motion & Wall / Goal / Paddle Collision Physics
       setPuck((prev) => {
         let newX = prev.x + prev.vx * delta * 75;
         let newY = prev.y + prev.vy * delta * 75;
@@ -144,34 +167,36 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           triggerVibration([15, 25], vibrationEnabled);
         }
 
-        // Check Goal Mouths
-        if (newY <= 3) {
-          if (newX >= 28 && newX <= 72) {
+        // Check Goal Mouths (Wide mouth width: 22% to 78%, Goal depth: y <= 6% or y >= 94%)
+        if (newY <= 6) {
+          if (newX >= 22 && newX <= 78) {
+            // Player 1 Goal! (Scored into Bot Goal at Top)
             handleGoal('P1');
             setIsRocketActive(false);
             return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: 0.5 };
           } else {
             vy = Math.abs(vy) * 0.95;
-            newY = 3;
+            newY = 6;
             playBeepSound(300, 0.05, soundEnabled);
           }
-        } else if (newY >= 97) {
-          if (newX >= 28 && newX <= 72) {
+        } else if (newY >= 94) {
+          if (newX >= 22 && newX <= 78) {
+            // Player 2 Goal! (Puck missed player defense and entered Bottom Goal)
             handleGoal('P2');
             setIsRocketActive(false);
             return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: -0.5 };
           } else {
             vy = -Math.abs(vy) * 0.95;
-            newY = 97;
+            newY = 94;
             playBeepSound(300, 0.05, soundEnabled);
           }
         }
 
-        // Convert percentage positions to pixel units for collision
+        // Convert percentage positions to pixel units for exact collision
         const puckPxX = (newX / 100) * arenaW;
         const puckPxY = (newY / 100) * arenaH;
 
-        const paddleRadiusPx = 34; // Enlarged paddle hitbox for easy control
+        const paddleRadiusPx = 32;
         const puckRadiusPx = 18;
         const combinedRadius = paddleRadiusPx + puckRadiusPx;
 
@@ -183,13 +208,13 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         if (distP1Px <= combinedRadius && distP1Px > 0) {
           const normalX = (puckPxX - p1PxX) / distP1Px;
 
-          // Positional Correction
+          // Positional Correction: Instantly pop puck out of paddle radius
           const overlap = combinedRadius - distP1Px + 3;
           newX += (normalX * overlap / arenaW) * 100;
           newY += ((puckPxY - p1PxY) / distP1Px * overlap / arenaH) * 100;
 
-          // Powerful rocket hit
-          vy = -1.25 - Math.abs(vy) * 0.25;
+          // POWERFUL UPWARD SHUTTLE: Launches puck directly towards Top Bot Goal!
+          vy = -1.35 - Math.abs(vy) * 0.3;
           vx = normalX * 0.95;
 
           setImpactSpark({ x: newX, y: newY });
@@ -211,8 +236,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           newX += (normalX * overlap / arenaW) * 100;
           newY += ((puckPxY - p2PxY) / distP2Px * overlap / arenaH) * 100;
 
-          vy = 0.75 + Math.abs(vy) * 0.15;
-          vx = normalX * 0.75;
+          vy = 0.7 + Math.abs(vy) * 0.15;
+          vx = normalX * 0.7;
 
           setImpactSpark({ x: newX, y: newY });
           setTimeout(() => setImpactSpark(null), 250);
@@ -231,25 +256,24 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [p2Paddle, puck, mode, isBotFrozen, isShieldActive, soundEnabled, vibrationEnabled]);
 
-  // Activate Rocket Shot Ability
+  // Special Abilities
   const handleActivateRocket = () => {
     if (rocketCooldown > 0 || isFinishedRef.current) return;
     setIsRocketActive(true);
     setRocketCooldown(6);
 
-    // Launch puck at 3X rocket speed towards opponent's goal!
+    // Launch puck directly into opponent's goal!
     setPuck((prev) => ({
       x: prev.x,
       y: Math.min(prev.y, 75),
       vx: (Math.random() - 0.5) * 0.8,
-      vy: -1.8,
+      vy: -1.9,
     }));
 
     playFanfareSound(soundEnabled);
     triggerVibration([30, 40, 30], vibrationEnabled);
   };
 
-  // Activate Shield Wall Ability
   const handleActivateShield = () => {
     if (shieldCooldown > 0 || isFinishedRef.current) return;
     setIsShieldActive(true);
@@ -260,7 +284,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     triggerVibration([20, 30], vibrationEnabled);
   };
 
-  // Activate Freeze Bot Ability
   const handleActivateFreeze = () => {
     if (freezeCooldown > 0 || isFinishedRef.current) return;
     setIsBotFrozen(true);
@@ -276,21 +299,21 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     playFanfareSound(soundEnabled);
     triggerVibration([25, 35, 25], vibrationEnabled);
 
-    const scorerName = scorer === 'P1' ? players[0]?.name : (mode === 'single' ? 'BOT RAKİP' : players[1]?.name);
-    setGoalAnnouncement(`⚽ GOOOL! ${scorerName.toUpperCase()}`);
-    setTimeout(() => setGoalAnnouncement(null), 1400);
-
     if (scorer === 'P1') {
       const next = p1ScoreRef.current + 1;
       p1ScoreRef.current = next;
       setP1Score(next);
+      setGoalAnnouncement(`🔥 HARİKA GOL! SİZ KAZANDINIZ (+1 PUAN)`);
       if (next >= 5) finishGame();
     } else {
       const next = p2ScoreRef.current + 1;
       p2ScoreRef.current = next;
       setP2Score(next);
+      setGoalAnnouncement(`❌ DEFANS KAÇTI! (Bot Sayı Kazandı)`);
       if (next >= 5) finishGame();
     }
+
+    setTimeout(() => setGoalAnnouncement(null), 1500);
   };
 
   const finishGame = () => {
@@ -301,23 +324,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       { playerId: players[1]?.id || 'p2', score: p2ScoreRef.current },
     ];
     onFinishGame(results);
-  };
-
-  // Instant Touch Teleport & Full-Range Paddle Controls
-  const handleP1Pointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!containerRef.current || isFinishedRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 5), 95);
-    const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 42), 95);
-    setP1Paddle({ x, y });
-  };
-
-  const handleP2Pointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (mode !== 'multi' || !containerRef.current || isFinishedRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 5), 95);
-    const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 5), 48);
-    setP2Paddle({ x, y });
   };
 
   return (
@@ -343,31 +349,29 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       {/* Air Hockey Table Arena */}
       <div
         ref={containerRef}
-        onPointerMove={handleP1Pointer}
-        onPointerDown={handleP1Pointer}
         className="flex-1 relative bg-slate-900 border-4 border-cyan-500/50 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.25)] flex flex-col justify-between cursor-crosshair"
       >
         {/* Goal Announcement Banner */}
         {goalAnnouncement && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-slate-950/95 border-2 border-amber-400 px-6 py-3 rounded-full font-black text-sm text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-slate-950/95 border-2 border-amber-400 px-6 py-3 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
             {goalAnnouncement}
           </div>
         )}
 
-        {/* Top Goal Mouth (Bot / P2) */}
-        <div className="absolute top-0 inset-x-[28%] h-3.5 bg-emerald-500/80 border-b-2 border-emerald-400 rounded-b-lg flex items-center justify-center z-10">
-          <span className="text-[9px] font-black text-white tracking-widest uppercase">BOT KALESİ</span>
+        {/* Top Goal Mouth (Bot Goal) */}
+        <div className="absolute top-0 inset-x-[22%] h-4 bg-emerald-500/90 border-b-2 border-emerald-400 rounded-b-xl flex items-center justify-center z-10 shadow-[0_0_15px_#10B981]">
+          <span className="text-[10px] font-black text-white tracking-widest uppercase">BOT KALESİ (HEDEF)</span>
         </div>
 
-        {/* Bottom Goal Mouth with Active Shield Overlay */}
-        <div className="absolute bottom-0 inset-x-[28%] h-3.5 bg-cyan-500/80 border-t-2 border-cyan-400 rounded-t-lg flex items-center justify-center z-10">
-          <span className="text-[9px] font-black text-white tracking-widest uppercase">SENİN KALEN</span>
+        {/* Bottom Goal Mouth (Player 1 Goal) */}
+        <div className="absolute bottom-0 inset-x-[22%] h-4 bg-cyan-500/90 border-t-2 border-cyan-400 rounded-t-xl flex items-center justify-center z-10 shadow-[0_0_15px_#06B6D4]">
+          <span className="text-[10px] font-black text-white tracking-widest uppercase">KENDİ KALEN</span>
         </div>
 
         {/* Active Protective Shield Wall Visual */}
         {isShieldActive && (
-          <div className="absolute bottom-4 inset-x-[10%] h-3 bg-cyan-400/80 border-2 border-cyan-200 rounded-full shadow-[0_0_20px_#38BDF8] animate-pulse z-30 flex items-center justify-center">
-            <span className="text-[10px] font-black text-slate-950 tracking-wider">🛡️ KALKAN KORUMASI ({shieldTimer}s)</span>
+          <div className="absolute bottom-5 inset-x-[8%] h-3.5 bg-cyan-400 border-2 border-cyan-100 rounded-full shadow-[0_0_25px_#38BDF8] animate-pulse z-30 flex items-center justify-center">
+            <span className="text-[10px] font-black text-slate-950 tracking-wider">🛡️ KALKAN DUVAR AKTİF ({shieldTimer}s)</span>
           </div>
         )}
 
@@ -382,15 +386,6 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           <div
             style={{ left: `${impactSpark.x}%`, top: `${impactSpark.y}%` }}
             className="absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-cyan-400/50 rounded-full animate-ping pointer-events-none z-30"
-          />
-        )}
-
-        {/* Top Half Drag Area (Multiplayer P2) */}
-        {mode === 'multi' && (
-          <div
-            onPointerMove={handleP2Pointer}
-            onPointerDown={handleP2Pointer}
-            className="absolute top-0 inset-x-0 h-1/2 z-0 cursor-pointer"
           />
         )}
 
@@ -453,7 +448,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
             }`}
           >
             <Flame className="w-4 h-4 text-amber-200 fill-current" />
-            <span>ROKET SHUT {rocketCooldown > 0 ? `(${rocketCooldown}s)` : ''}</span>
+            <span>ROKET ŞUT {rocketCooldown > 0 ? `(${rocketCooldown}s)` : ''}</span>
           </button>
 
           {/* Shield Wall Protection */}
