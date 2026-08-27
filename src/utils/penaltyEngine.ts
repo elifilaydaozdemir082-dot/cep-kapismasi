@@ -84,7 +84,7 @@ export function selectKeeperDiveZone(
     }
   }
 
-  return zones[Math.floor(randomFn() * randomFn().toString().length) % zones.length];
+  return zones[Math.floor(randomFn() * zones.length)];
 }
 
 export function calculateShotOutcome(
@@ -96,12 +96,12 @@ export function calculateShotOutcome(
   const { leftPostX, rightPostX, crossbarY, groundY } = GOAL_FRAME;
 
   // 1. Check Out of Bounds (Missed)
-  if (x < leftPostX - 5 || x > rightPostX + 5 || y < crossbarY - 5 || y > groundY + 8) {
+  if (x < leftPostX - 4 || x > rightPostX + 4 || y < crossbarY - 4 || y > groundY + 10) {
     return 'missed';
   }
 
   // 2. Check Goalkeeper Save First
-  const reachRadius = difficulty === 'easy' ? 12 : difficulty === 'normal' ? 14 : 16;
+  const reachRadius = difficulty === 'easy' ? 12 : difficulty === 'normal' ? 15 : 18;
   const dx = x - keeperPos.x;
   const dy = y - keeperPos.y;
   const distToGoalkeeper = Math.hypot(dx, dy);
@@ -111,16 +111,20 @@ export function calculateShotOutcome(
   }
 
   // 3. Check Post / Crossbar Hit (Near X=20, X=80 or Y=18)
-  const isNearLeftPost = Math.abs(x - leftPostX) <= 2.5 && y >= crossbarY && y <= groundY;
-  const isNearRightPost = Math.abs(x - rightPostX) <= 2.5 && y >= crossbarY && y <= groundY;
-  const isNearCrossbar = Math.abs(y - crossbarY) <= 2.5 && x >= leftPostX && x <= rightPostX;
+  const isNearLeftPost = Math.abs(x - leftPostX) <= 2.5 && y >= crossbarY - 2 && y <= groundY + 2;
+  const isNearRightPost = Math.abs(x - rightPostX) <= 2.5 && y >= crossbarY - 2 && y <= groundY + 2;
+  const isNearCrossbar = Math.abs(y - crossbarY) <= 2.5 && x >= leftPostX - 2 && x <= rightPostX + 2;
 
   if (isNearLeftPost || isNearRightPost || isNearCrossbar) {
     return 'post';
   }
 
-  // 4. Goal Check (100% Goal inside goal frame)
-  return 'goal';
+  // 4. Inside Goal Frame -> GOAL!
+  if (x > leftPostX + 2.5 && x < rightPostX - 2.5 && y > crossbarY + 2.5 && y <= groundY + 4) {
+    return 'goal';
+  }
+
+  return 'missed';
 }
 
 export function calculateShotScore(
