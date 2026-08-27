@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Target, Compass, Trophy, Zap } from 'lucide-react';
+import { Target, Compass, Trophy, Zap, Eye } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -18,12 +18,15 @@ interface WindVector {
 }
 
 const WIND_PRESETS: WindVector[] = [
-  { speed: 1.2, angle: 45, label: '↗️ 1.2 m/s Kuzeydoğu Meltemi' },
-  { speed: 2.5, angle: 180, label: '⬇️ 2.5 m/s Güney Rüzgârı' },
-  { speed: 3.2, angle: 270, label: '⬅️ 3.2 m/s Batı Fırtınası' },
-  { speed: 0.9, angle: 90, label: '➡️ 0.9 m/s Doğu Rüzgârı' },
-  { speed: 3.8, angle: 315, label: '↖️ 3.8 m/s Şiddetli Rüzgâr' },
+  { speed: 1.5, angle: 45, label: '↗️ 1.5 m/s Meltem' },
+  { speed: 2.8, angle: 180, label: '⬇️ 2.8 m/s Güney Rüzgârı' },
+  { speed: 3.6, angle: 270, label: '⬅️ 3.6 m/s Batı Fırtınası' },
+  { speed: 1.1, angle: 90, label: '➡️ 1.1 m/s Doğu Rüzgârı' },
+  { speed: 4.5, angle: 315, label: '↖️ 4.5 m/s Şiddetli Rüzgâr' },
 ];
+
+// Progressive Shot Distances (Shot 1: 30m, Shot 2: 50m, Shot 3: 70m, Shot 4: 90m, Shot 5: 100m)
+const SHOT_DISTANCES = [30, 50, 70, 90, 100];
 
 export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   mode,
@@ -42,12 +45,12 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     return initial;
   });
 
-  // Target SVG Coordinate Space (viewBox 0 0 200 200, Center is (100, 100))
+  // Target SVG Coordinates (viewBox 0 0 200 200, Center (100, 100))
   const [aimSvg, setAimSvg] = useState<{ x: number; y: number } | null>(null);
   const [isShooting, setIsShooting] = useState<boolean>(false);
   const [wind, setWind] = useState<WindVector>(WIND_PRESETS[0]);
 
-  // Arrow Flight & Impact in SVG Coordinates
+  // Scope & Arrow Flight State
   const [arrowSvg, setArrowSvg] = useState<{ x: number; y: number }>({ x: 100, y: 240 });
   const [arrowScale, setArrowScale] = useState<number>(1.8);
   const [stuckArrows, setStuckArrows] = useState<{ x: number; y: number; id: number }[]>([]);
@@ -66,13 +69,17 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   }, [players]);
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
+  const targetDistance = SHOT_DISTANCES[currentShot - 1] || 30;
+
+  // Scale target visual size based on progressive distance (30m is 100%, 100m is 45%)
+  const distanceTargetScale = Math.max(0.42, 1.15 - (targetDistance / 100) * 0.7);
 
   useEffect(() => {
     const randWind = WIND_PRESETS[Math.floor(Math.random() * WIND_PRESETS.length)];
     setWind(randWind);
   }, [currentShot, currentPlayerIdx]);
 
-  // Convert pointer screen position directly into SVG (0..200) coordinates
+  // Pointer position normalized to SVG coordinates (0..200)
   const getSvgCoords = (e: React.PointerEvent) => {
     if (!targetSvgRef.current) return { x: 100, y: 100 };
     const rect = targetSvgRef.current.getBoundingClientRect();
@@ -107,15 +114,15 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     setAimSvg(null);
     setIsShooting(true);
 
-    // Calculate Wind Drift directly in SVG units
+    // Wind Drift Factor increases with Target Distance!
+    const distanceMultiplier = 1 + (targetDistance / 30) * 0.6;
     const rad = (wind.angle * Math.PI) / 180;
-    const driftX = Math.cos(rad) * wind.speed * 4.5;
-    const driftY = Math.sin(rad) * wind.speed * 4.5;
+    const driftX = Math.cos(rad) * wind.speed * 4.0 * distanceMultiplier;
+    const driftY = Math.sin(rad) * wind.speed * 4.0 * distanceMultiplier;
 
     const hitSvgX = Math.min(195, Math.max(5, rawSvg.x + driftX));
     const hitSvgY = Math.min(195, Math.max(5, rawSvg.y + driftY));
 
-    // Launch Flight Animation inside SVG
     launchArrowFlight(hitSvgX, hitSvgY);
   };
 
@@ -124,7 +131,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     const startY = 250;
 
     let progress = 0;
-    const durationFrames = 22; // 360ms flight
+    const durationFrames = 24;
 
     const animate = () => {
       progress += 1 / durationFrames;
@@ -150,7 +157,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   };
 
   const evaluateArrowHit = (hitX: number, hitY: number) => {
-    // Target Center in SVG is EXACTLY (100, 100)
     const targetCenterX = 100;
     const targetCenterY = 100;
     const radius = Math.hypot(hitX - targetCenterX, hitY - targetCenterY);
@@ -158,41 +164,31 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     let score = 0;
     let text = '';
 
-    // Exact radii matching SVG circles 100% precisely:
-    // Gold Center: r <= 10
-    // Yellow Ring: 10 < r <= 16
-    // Red Ring: 16 < r <= 34
-    // Blue Ring: 34 < r <= 58
-    // Black Ring: 58 < r <= 82
-    // White Ring: 82 < r <= 98
-    // Miss: r > 98
-
+    // Radii matching target SVG 100%
     if (radius <= 10.0) {
       score = 10;
-      text = '🎯 TAM 12\'DEN BULLSEYE! (10 PUAN)';
+      text = `🎯 MESAFE ${targetDistance}m: TAM 12'DEN BULLSEYE! (10 PUAN)`;
     } else if (radius <= 16.0) {
       score = 9;
-      text = '🟡 SARI ISABET! (9 PUAN)';
+      text = `🟡 MESAFE ${targetDistance}m: SARI ISABET! (9 PUAN)`;
     } else if (radius <= 34.0) {
       score = 7;
-      text = '🔴 KIRMIZI ISABET! (7 PUAN)';
+      text = `🔴 MESAFE ${targetDistance}m: KIRMIZI ISABET! (7 PUAN)`;
     } else if (radius <= 58.0) {
       score = 5;
-      text = '🔵 MAVİ ISABET! (5 PUAN)';
+      text = `🔵 MESAFE ${targetDistance}m: MAVİ ISABET! (5 PUAN)`;
     } else if (radius <= 82.0) {
       score = 3;
-      text = '⬛ SİYAH ISABET! (3 PUAN)';
+      text = `⬛ MESAFE ${targetDistance}m: SİYAH ISABET! (3 PUAN)`;
     } else if (radius <= 98.0) {
       score = 1;
-      text = '⚪ BEYAZ DIŞ HALKA! (1 PUAN)';
+      text = `⚪ MESAFE ${targetDistance}m: BEYAZ DIŞ HALKA! (1 PUAN)`;
     } else {
       score = 0;
-      text = '❌ KARAVANA! (Tahtaya İsabet Edemedi)';
+      text = `❌ MESAFE ${targetDistance}m: KARAVANA! (Dışarı Gitti)`;
     }
 
     setFeedback(text);
-
-    // Save stuck arrow inside SVG coordinates
     setStuckArrows((prev) => [...prev, { x: hitX, y: hitY, id: Date.now() }]);
 
     if (score > 0) {
@@ -243,7 +239,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       score: playerScoresRef.current[p.id] || 0,
       stats: {
         'Toplam Okçuluk Skoru': playerScoresRef.current[p.id] || 0,
-        'Atılan Ok': totalShots,
+        'Maksimum Mesafe': `${SHOT_DISTANCES[SHOT_DISTANCES.length - 1]} Metre`,
       },
     }));
 
@@ -258,10 +254,13 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           <div className="p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
             <Target className="w-5 h-5" aria-hidden="true" />
           </div>
-          <span className="font-black text-sm tracking-wide text-white">OLİMPİYAT OKÇULUK</span>
+          <span className="font-black text-sm tracking-wide text-white">DÜRBÜNLÜ MESAFE OKÇULUĞU</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs font-black">
+          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+            📏 Mesafe: {targetDistance}m
+          </span>
           <span style={{ color: currentPlayer.color }} className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800">
             👤 {currentPlayer.name}
           </span>
@@ -294,8 +293,13 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           </div>
         )}
 
-        {/* Unified Target SVG Canvas Container */}
-        <div className="relative w-80 h-80 mx-auto my-auto flex items-center justify-center cursor-crosshair">
+        {/* Distant Target Board (Scales down dynamically with distance) */}
+        <div
+          style={{
+            transform: `translate(-50%, -50%) scale(${distanceTargetScale})`,
+          }}
+          className="absolute top-[46%] left-1/2 w-80 h-80 flex items-center justify-center pointer-events-none z-10 transition-transform duration-700"
+        >
           <svg
             ref={targetSvgRef}
             onPointerDown={handlePointerDown}
@@ -304,7 +308,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
             width="320"
             height="320"
             viewBox="0 0 200 200"
-            className="drop-shadow-2xl overflow-visible select-none"
+            className="drop-shadow-2xl overflow-visible select-none pointer-events-auto cursor-crosshair"
           >
             {/* Wooden Tripod Stand */}
             <line x1="40" y1="180" x2="15" y2="215" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
@@ -315,28 +319,23 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
             <circle cx="100" cy="100" r="98" fill="#1E293B" stroke="#0F172A" strokeWidth="4" />
 
             {/* Concentric Score Rings */}
-            {/* White Rings 1-2 (r = 98 & 82) */}
             <circle cx="100" cy="100" r="98" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
             <circle cx="100" cy="100" r="82" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
 
-            {/* Black Rings 3-4 (r = 82 & 58) */}
             <circle cx="100" cy="100" r="82" fill="#0F172A" stroke="#334155" strokeWidth="1" />
             <circle cx="100" cy="100" r="58" fill="#0F172A" stroke="#334155" strokeWidth="1" />
 
-            {/* Blue Rings 5-6 (r = 58 & 34) */}
             <circle cx="100" cy="100" r="58" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
             <circle cx="100" cy="100" r="34" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
 
-            {/* Red Rings 7-8 (r = 34 & 16) */}
             <circle cx="100" cy="100" r="34" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
             <circle cx="100" cy="100" r="16" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
 
-            {/* Gold Rings 9-10 (r = 16 & 10) */}
             <circle cx="100" cy="100" r="16" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
             <circle cx="100" cy="100" r="10" fill="#FBBF24" stroke="#D97706" strokeWidth="1" />
             <circle cx="100" cy="100" r="2" fill="#020617" />
 
-            {/* Stuck Arrows Rendered Directly Inside SVG Canvas */}
+            {/* Stuck Arrows */}
             {stuckArrows.map((arrow) => (
               <g key={arrow.id} transform={`translate(${arrow.x}, ${arrow.y})`}>
                 <circle cx="0" cy="0" r="3.5" fill="#EF4444" stroke="#FFFFFF" strokeWidth="1.2" />
@@ -344,15 +343,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
               </g>
             ))}
 
-            {/* Aim Reticle Indicator */}
-            {aimSvg && (
-              <g transform={`translate(${aimSvg.x}, ${aimSvg.y})`}>
-                <circle cx="0" cy="0" r="8" fill="none" stroke="#F59E0B" strokeWidth="2" strokeDasharray="3 3" />
-                <circle cx="0" cy="0" r="2.5" fill="#F59E0B" />
-              </g>
-            )}
-
-            {/* Flying Arrow inside SVG Canvas */}
+            {/* Flying Arrow */}
             <g transform={`translate(${arrowSvg.x}, ${arrowSvg.y}) scale(${arrowScale})`}>
               <line x1="0" y1="12" x2="0" y2="-12" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
               <polygon points="0,-16 -4,-8 4,-8" fill="#EF4444" />
@@ -361,10 +352,52 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           </svg>
         </div>
 
+        {/* Interactive Telescopic Scope Overlay (Appears when dragging to aim) */}
+        {aimSvg && (
+          <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+            {/* Scope Lens Frame */}
+            <div className="relative w-72 h-72 rounded-full border-4 border-amber-400 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden flex items-center justify-center bg-slate-900">
+              {/* Scope Lens Crosshair Lines */}
+              <svg width="100%" height="100%" viewBox="0 0 200 200" className="absolute inset-0 z-30">
+                <circle cx="100" cy="100" r="95" fill="none" stroke="#F59E0B" strokeWidth="2" opacity="0.6" />
+                <line x1="0" y1="100" x2="200" y2="100" stroke="#EF4444" strokeWidth="1.5" strokeDasharray="6 4" />
+                <line x1="100" y1="0" x2="100" y2="200" stroke="#EF4444" strokeWidth="1.5" strokeDasharray="6 4" />
+                <circle cx="100" cy="100" r="15" fill="none" stroke="#EF4444" strokeWidth="1.5" />
+                <circle cx="100" cy="100" r="3" fill="#EF4444" />
+              </svg>
+
+              {/* Magnified Target View inside Scope Lens */}
+              <div
+                style={{
+                  transform: `translate(${(100 - aimSvg.x) * 2.2}px, ${(100 - aimSvg.y) * 2.2}px) scale(2.2)`,
+                }}
+                className="transition-transform duration-75"
+              >
+                <svg width="200" height="200" viewBox="0 0 200 200">
+                  <circle cx="100" cy="100" r="98" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="82" fill="#0F172A" stroke="#334155" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="58" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="34" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="16" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="10" fill="#FBBF24" stroke="#D97706" strokeWidth="1" />
+                  <circle cx="100" cy="100" r="2" fill="#020617" />
+                </svg>
+              </div>
+
+              {/* Scope Lens HUD Distance & Wind Info */}
+              <div className="absolute bottom-3 inset-x-0 text-center z-40">
+                <span className="text-[10px] font-black bg-slate-950/90 border border-amber-400/40 text-amber-300 px-3 py-1 rounded-full shadow-lg">
+                  🔭 DÜRBÜN BÜYÜTMESİ (MESAFE: {targetDistance}m)
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-emerald-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-emerald-300 font-black flex items-center justify-center gap-1.5">
-            🎯 Hedef tahtasına dokunarak nişan alın ve rüzgar sapmasını hesaba katarak bırakın!
+            <Eye className="w-4 h-4 text-emerald-400" /> Dürbün merceğini açmak için hedefe basılı tutun ve rüzgarı hesaba katarak bırakın!
           </p>
         </div>
       </div>
