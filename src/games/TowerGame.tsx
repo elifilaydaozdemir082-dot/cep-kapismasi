@@ -114,7 +114,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 
     const topFloor = floors[floors.length - 1];
 
-    // Standardized Center-Based Collision Math (Eliminates Right/Left Position Shift Bug!)
+    // Standardized Center-Based Collision Math
     const currentWidth = Math.max(40, topFloor.width);
 
     const currentLeft = craneX - currentWidth / 2;
@@ -337,22 +337,23 @@ export const TowerGame: React.FC<TowerGameProps> = ({
         {/* Swinging Crane Top Cable & Hook SVG */}
         {!isGameOver && isGameStarted && (
           <div className="absolute top-0 inset-x-0 h-40 pointer-events-none z-30">
+            {/* SVG Cable Line connected 100% directly to the swinging block center top */}
             <svg width="100%" height="100%" className="overflow-visible">
               <line x1="0" y1="12" x2="100%" y2="12" stroke="#F59E0B" strokeWidth="6" strokeDasharray="12 6" />
               <circle cx={`${craneX}%`} cy="12" r="8" fill="#F59E0B" stroke="#0F172A" strokeWidth="2" />
-              <line x1={`${craneX}%`} y1="12" x2={`${craneX}%`} y2="100" stroke="#94A3B8" strokeWidth="3" />
-              <circle cx={`${craneX}%`} cy="100" r="6" fill="none" stroke="#F59E0B" strokeWidth="3" />
+              <line x1={`${craneX}%`} y1="12" x2={`${craneX}%`} y2="98" stroke="#94A3B8" strokeWidth="3" />
+              <circle cx={`${craneX}%`} cy="98" r="5" fill="#F59E0B" stroke="#0F172A" strokeWidth="2" />
             </svg>
 
-            {/* Swinging 3D Skyscraper Floor Block (Center Aligned EXACTLY to craneX%) */}
+            {/* Swinging 3D Skyscraper Floor Block (Strict 1-to-1 sync with craneX%, no CSS transition lag) */}
             <div
               style={{
                 left: `${craneX}%`,
                 width: `${floors[floors.length - 1]?.width || INITIAL_WIDTH}%`,
                 transform: 'translateX(-50%)',
-                top: '100px',
+                top: '98px',
               }}
-              className="absolute h-10 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 border-2 border-white shadow-[0_0_20px_#38BDF8] flex items-center justify-around px-3 transition-all"
+              className="absolute h-10 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 border-2 border-white shadow-[0_0_20px_#38BDF8] flex items-center justify-around px-3"
             >
               <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
               <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
