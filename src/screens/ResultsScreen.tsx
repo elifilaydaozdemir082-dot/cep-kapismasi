@@ -146,29 +146,28 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
         </div>
       )}
 
-      {/* ACTION BUTTONS */}
-      <div className="flex flex-col gap-2 pt-2 max-w-md mx-auto w-full">
+      {/* PROMINENT CLEAR ACTION SELECTION BUTTONS */}
+      <div className="flex flex-col gap-2.5 pt-2 max-w-md mx-auto w-full">
         <button
           onClick={onPlayAgain}
-          className="w-full py-3.5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+          className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-300/40"
         >
-          <RotateCcw className="w-5 h-5 stroke-[2.5]" aria-hidden="true" /> Tekrar Oyna
+          <RotateCcw className="w-5 h-5 stroke-[2.5]" aria-hidden="true" /> TEKRAR OYNA
         </button>
 
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={onGameSelect}
-            className="py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 font-black text-xs active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <LayoutGrid className="w-4 h-4" aria-hidden="true" /> Oyun Seçimi
-          </button>
-          <button
-            onClick={onMainMenu}
-            className="py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 font-black text-xs active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <Home className="w-4 h-4 text-cyan-400" aria-hidden="true" /> Ana Sayfa
-          </button>
-        </div>
+        <button
+          onClick={onGameSelect}
+          className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 border border-indigo-400/30"
+        >
+          <LayoutGrid className="w-5 h-5 stroke-[2.5]" aria-hidden="true" /> OYUN SEÇENEKLERİNE DÖN
+        </button>
+
+        <button
+          onClick={onMainMenu}
+          className="w-full py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white font-extrabold text-xs active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
+        >
+          <Home className="w-4 h-4 text-cyan-400" aria-hidden="true" /> Ana Sayfaya Dön
+        </button>
       </div>
     </div>
   );
