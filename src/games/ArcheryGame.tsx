@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Target, Trophy, Zap, Eye, Flame } from 'lucide-react';
+import { Eye, Flame } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -266,24 +266,21 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
   return (
     <div className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none overflow-hidden touch-none p-3 space-y-2">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-            <Target className="w-4 h-4" aria-hidden="true" />
-          </div>
-          <span className="font-black text-xs tracking-wide text-white">OKÇULUK</span>
+      {/* Header Bar with left padding reserved for global Ana Sayfa HomeButton */}
+      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl pl-28 pr-3 py-1.5 shadow-md">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-black text-[11px] tracking-tight text-amber-400 truncate">🎯 OKÇULUK</span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-black">
-          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+        <div className="flex items-center gap-1.5 text-[11px] font-black shrink-0">
+          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
             📏 {targetDistance}m
           </span>
-          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5" /> {currentShot}/{totalShots}
+          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-lg">
+            ⚡ {currentShot}/{totalShots}
           </span>
-          <span className="text-amber-400 bg-amber-500/10 border border-amber-400/20 px-3 py-1 rounded-full flex items-center gap-1">
-            <Trophy className="w-3.5 h-3.5" /> Skor: {playerScores[currentPlayer.id] || 0}
+          <span className="text-amber-400 bg-amber-500/10 border border-amber-400/20 px-2 py-0.5 rounded-lg">
+            🏆 {playerScores[currentPlayer.id] || 0}
           </span>
         </div>
       </div>
