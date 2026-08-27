@@ -351,7 +351,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
               <circle cx={`${craneX}%`} cy="98" r="5" fill="#F59E0B" stroke="#0F172A" strokeWidth="2" />
             </svg>
 
-            {/* Swinging 3D Skyscraper Floor Block (Strict 1-to-1 sync with craneX%, no CSS transition lag) */}
+            {/* Swinging 3D Skyscraper Floor Block */}
             <div
               style={{
                 left: `${craneX}%`,
@@ -368,13 +368,13 @@ export const TowerGame: React.FC<TowerGameProps> = ({
           </div>
         )}
 
-        {/* Stacked Skyscraper Tower Container (Center Aligned EXACTLY to centerX%) */}
+        {/* Stacked Skyscraper Tower Container (Kat 1 at Bottom, Kat N at Top) */}
         <div
           style={{
             transform: `rotate(${towerTilt}deg)`,
             transformOrigin: 'bottom center',
           }}
-          className="relative w-full flex flex-col-reverse justify-start transition-transform duration-300 z-20"
+          className="relative w-full flex flex-col-reverse justify-start transition-transform duration-300 z-20 mb-2"
         >
           {floors.map((floor, idx) => (
             <div
@@ -414,11 +414,11 @@ export const TowerGame: React.FC<TowerGameProps> = ({
               </span>
             </div>
           ))}
+        </div>
 
-          {/* City Skyline Foundation Base */}
-          <div className="w-full h-12 rounded-2xl bg-slate-950 border-2 border-slate-700 text-center text-xs font-black text-cyan-400 flex items-center justify-center shadow-2xl relative overflow-hidden z-10">
-            <span className="relative z-10">🏙️ GÖKDELEN TEMELİ (EKRANA DOKUNUP KATİ BIRAK!)</span>
-          </div>
+        {/* Fixed Skyscraper Foundation Base (ALWAYS STAYS FIXED AT THE VERY BOTTOM!) */}
+        <div className="w-full h-12 rounded-2xl bg-slate-950 border-2 border-slate-700 text-center text-xs font-black text-cyan-400 flex items-center justify-center shadow-2xl relative overflow-hidden z-10 shrink-0">
+          <span className="relative z-10">🏙️ GÖKDELEN TEMELİ (EKRANA DOKUNUP KATİ BIRAK!)</span>
         </div>
       </div>
     </div>
