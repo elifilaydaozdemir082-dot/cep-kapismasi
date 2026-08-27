@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bot, BatteryCharging, Lightbulb, Lock, Eye, EyeOff } from 'lucide-react';
 import type { Player } from '../types/game';
 import { wordService } from '../services/wordService';
@@ -40,7 +40,12 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
   // Single player score & streak
   const [singleScore, setSingleScore] = useState<number>(0);
   const [currentStreak, setCurrentStreak] = useState<number>(0);
-  const [wordsSolved, setWordsSolved] = useState<number>(0);
+  const [_wordsSolved, setWordsSolved] = useState<number>(0);
+
+  const isFinishedRef = useRef<boolean>(false);
+  const singleScoreRef = useRef<number>(0);
+  const currentStreakRef = useRef<number>(0);
+  const wordsSolvedRef = useRef<number>(0);
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
   const maxWrongAttempts = 6;
@@ -53,6 +58,7 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
   }, [mode]);
 
   const startNewSinglePlayerWord = () => {
+    if (isFinishedRef.current) return;
     const wordItem = wordService.getRandomWord();
     if (wordItem) {
       setSecretWord(toTurkishUpper(wordItem.word));
@@ -71,7 +77,7 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
 
   // Keyboard Event Support
   useEffect(() => {
-    if (stage !== 'guessing') return;
+    if (stage !== 'guessing' || isFinishedRef.current) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = toTurkishUpper(e.key);
@@ -87,6 +93,7 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
   // Handle Multi Player Creator Word Input
   const handleCreatorSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFinishedRef.current) return;
     const sanitized = sanitizeWord(secretWord);
 
     if (!sanitized || sanitized.length < 2) {
@@ -108,7 +115,7 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
   };
 
   const guessLetter = (letter: string) => {
-    if (stage !== 'guessing' || guessedLetters.includes(letter) || wrongLetters.includes(letter)) {
+    if (stage !== 'guessing' || isFinishedRef.current || guessedLetters.includes(letter) || wrongLetters.includes(letter)) {
       return;
     }
 
@@ -140,13 +147,23 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
 
     if (mode === 'single') {
       const basePts = hintUsed ? 5 : 10;
-      const earned = basePts + currentStreak * 2;
+      const earned = basePts + currentStreakRef.current * 2;
 
-      setSingleScore((s) => s + earned);
-      setWordsSolved((w) => w + 1);
-      setCurrentStreak((s) => s + 1);
+      const newScore = singleScoreRef.current + earned;
+      const newStreak = currentStreakRef.current + 1;
+      const newSolved = wordsSolvedRef.current + 1;
+
+      singleScoreRef.current = newScore;
+      currentStreakRef.current = newStreak;
+      wordsSolvedRef.current = newSolved;
+
+      setSingleScore(newScore);
+      setWordsSolved(newSolved);
+      setCurrentStreak(newStreak);
       setStage('round-result');
     } else {
+      if (isFinishedRef.current) return;
+      isFinishedRef.current = true;
       onFinishGame([
         {
           playerId: currentPlayer.id,
@@ -164,21 +181,27 @@ export const HangmanGame: React.FC<HangmanGameProps> = ({
     triggerVibration(60, vibrationEnabled);
 
     if (mode === 'single') {
+      currentStreakRef.current = 0;
       setCurrentStreak(0);
       setStage('round-result');
     } else {
+      if (isFinishedRef.current) return;
+      isFinishedRef.current = true;
       onFinishGame([{ playerId: currentPlayer.id, score: 0 }]);
     }
   };
 
   const finishSinglePlayerGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     onFinishGame([
       {
         playerId: players[0].id,
-        score: singleScore,
+        score: singleScoreRef.current,
         stats: {
-          'Çözülen Kelime': wordsSolved,
-          'En Uzun Seri': currentStreak,
+          'Çözülen Kelime': wordsSolvedRef.current,
+          'En Uzun Seri': currentStreakRef.current,
         },
       },
     ]);

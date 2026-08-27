@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link as LinkIcon, Send, Heart } from 'lucide-react';
 import type { Player } from '../types/game';
 import { wordService } from '../services/wordService';
@@ -33,6 +33,9 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
   });
 
   const [chainLength, setChainLength] = useState<number>(0);
+  const isFinishedRef = useRef<boolean>(false);
+  const chainLengthRef = useRef<number>(0);
+
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
   // Initialize chain with random start word
@@ -41,10 +44,13 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
     const startWord = startItem ? toTurkishUpper(startItem.word) : 'KALEM';
     setChainWords([startWord]);
     setChainLength(1);
+    chainLengthRef.current = 1;
   }, []);
 
   // Timer loop
   useEffect(() => {
+    if (isFinishedRef.current) return;
+
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -65,6 +71,7 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFinishedRef.current) return;
     const sanitized = sanitizeWord(userInput);
     setErrorMsg(null);
 
@@ -113,7 +120,9 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
     triggerVibration(15, vibrationEnabled);
     const nextChain = [...chainWords, sanitized];
     setChainWords(nextChain);
-    setChainLength((l) => l + 1);
+    const nextLen = chainLengthRef.current + 1;
+    chainLengthRef.current = nextLen;
+    setChainLength(nextLen);
     setUserInput('');
     setTimeLeft(10);
 
@@ -126,6 +135,7 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
 
   // AI turn generator for Single Player mode
   const processAITurn = (userWord: string, currentChain: string[]) => {
+    if (isFinishedRef.current) return;
     const reqLetter = userWord[userWord.length - 1];
     const allWords = wordService.getAllWords().map((w) => toTurkishUpper(w.word));
     const aiCandidate = allWords.find(
@@ -135,7 +145,9 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
     if (aiCandidate) {
       playBeepSound(500, 0.1, soundEnabled);
       setChainWords([...currentChain, aiCandidate]);
-      setChainLength((l) => l + 1);
+      const nextLen = chainLengthRef.current + 1;
+      chainLengthRef.current = nextLen;
+      setChainLength(nextLen);
       setTimeLeft(10);
     } else {
       finishGame();
@@ -167,12 +179,15 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     onFinishGame([
       {
         playerId: currentPlayer.id,
-        score: chainLength,
+        score: chainLengthRef.current,
         stats: {
-          'Zincir Uzunluğu': chainLength,
+          'Zincir Uzunluğu': chainLengthRef.current,
         },
       },
     ]);
@@ -203,6 +218,9 @@ export const WordChainGame: React.FC<WordChainGameProps> = ({
               ))}
             </div>
           )}
+          <span className="text-xs font-black text-cyan-400">
+            Zincir: {chainLength}
+          </span>
           <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
             Süre: {timeLeft}s
           </span>

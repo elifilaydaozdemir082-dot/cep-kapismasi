@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Brain } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
@@ -24,6 +24,9 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   const [score, setScore] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  const isFinishedRef = useRef<boolean>(false);
+  const scoreRef = useRef<number>(0);
+
   const colors = [
     { id: 0, bg: 'bg-rose-500', activeBg: 'bg-rose-300' },
     { id: 1, bg: 'bg-cyan-500', activeBg: 'bg-cyan-300' },
@@ -36,6 +39,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   }, []);
 
   const startNextTurn = (currentSeq: number[]) => {
+    if (isFinishedRef.current) return;
     const nextBtn = Math.floor(Math.random() * 4);
     const newSeq = [...currentSeq, nextBtn];
     setSequence(newSeq);
@@ -46,6 +50,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   const showSequence = async (seq: number[]) => {
     setIsShowingSequence(true);
     for (let i = 0; i < seq.length; i++) {
+      if (isFinishedRef.current) return;
       await new Promise((r) => setTimeout(r, 400));
       setActiveButton(seq[i]);
       playTapSound(soundEnabled);
@@ -56,7 +61,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   };
 
   const handleButtonClick = (btnId: number) => {
-    if (isShowingSequence) return;
+    if (isShowingSequence || isFinishedRef.current) return;
 
     playTapSound(soundEnabled);
     triggerVibration(10, vibrationEnabled);
@@ -78,7 +83,9 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
       // Completed round!
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
-      setScore((s) => s + 1);
+      const nextScore = scoreRef.current + 1;
+      scoreRef.current = nextScore;
+      setScore(nextScore);
       setFeedback('DOĞRU! SONRAKİ ADIM...');
 
       setTimeout(() => {
@@ -89,12 +96,15 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     onFinishGame([
       {
         playerId: players[0].id,
-        score,
+        score: scoreRef.current,
         stats: {
-          'Hafıza Adımı': score,
+          'Hafıza Adımı': scoreRef.current,
         },
       },
     ]);

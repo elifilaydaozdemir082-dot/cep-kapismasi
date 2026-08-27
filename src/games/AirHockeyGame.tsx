@@ -21,6 +21,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const [p1Score, setP1Score] = useState<number>(0);
   const [p2Score, setP2Score] = useState<number>(0);
 
+  const p1ScoreRef = useRef<number>(0);
+  const p2ScoreRef = useRef<number>(0);
+
   // Paddles & Puck position state (% coords)
   const [p1Paddle, setP1Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 80 });
   const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 20 });
@@ -124,36 +127,36 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   }, [p1Paddle, p2Paddle, soundEnabled, vibrationEnabled]);
 
   const handleGoal = (scorer: 'P1' | 'P2') => {
+    if (isFinishedRef.current) return;
     playFanfareSound(soundEnabled);
     triggerVibration([20, 30, 20], vibrationEnabled);
 
     if (scorer === 'P1') {
-      setP1Score((s) => {
-        const next = s + 1;
-        if (next >= 5 && !isFinishedRef.current) finishGame(next, p2Score);
-        return next;
-      });
+      const next = p1ScoreRef.current + 1;
+      p1ScoreRef.current = next;
+      setP1Score(next);
+      if (next >= 5) finishGame();
     } else {
-      setP2Score((s) => {
-        const next = s + 1;
-        if (next >= 5 && !isFinishedRef.current) finishGame(p1Score, next);
-        return next;
-      });
+      const next = p2ScoreRef.current + 1;
+      p2ScoreRef.current = next;
+      setP2Score(next);
+      if (next >= 5) finishGame();
     }
   };
 
-  const finishGame = (finalP1: number, finalP2: number) => {
+  const finishGame = () => {
+    if (isFinishedRef.current) return;
     isFinishedRef.current = true;
     const results = [
-      { playerId: players[0].id, score: finalP1 },
-      { playerId: players[1]?.id || 'p2', score: finalP2 },
+      { playerId: players[0].id, score: p1ScoreRef.current },
+      { playerId: players[1]?.id || 'p2', score: p2ScoreRef.current },
     ];
     onFinishGame(results);
   };
 
   // Pointer drag for P1 paddle (Bottom half)
   const handleP1Pointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || isFinishedRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 10), 90);
     const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 52), 92);
@@ -162,7 +165,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
   // Pointer drag for P2 paddle (Top half - Multiplayer)
   const handleP2Pointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (mode !== 'multi' || !containerRef.current) return;
+    if (mode !== 'multi' || !containerRef.current || isFinishedRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 10), 90);
     const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 8), 48);

@@ -57,7 +57,17 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
   });
 
   const [flashingCell, setFlashingCell] = useState<{ r: number; c: number } | null>(null);
+
   const isFinishedRef = useRef<boolean>(false);
+  const foundWordsRef = useRef<string[]>([]);
+  const playerScoresRef = useRef<Record<string, number>>({});
+  const timeLeftRef = useRef<number>(timeLeft);
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    players.forEach((p) => (initial[p.id] = 0));
+    playerScoresRef.current = initial;
+  }, [players]);
 
   // Generate 8x8 Grid & Place 6-8 Words
   useEffect(() => {
@@ -66,7 +76,6 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
 
   const generateBoard = () => {
     const allWords = wordService.getAllWords().map((w) => toTurkishUpper(w.word));
-    // Filter words between 3 and 7 chars
     const candidateWords = allWords.filter((w) => w.length >= 3 && w.length <= 7);
     const shuffled = [...candidateWords].sort(() => Math.random() - 0.5).slice(0, 8);
 
@@ -95,7 +104,6 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
         const endC = startC + dir.dc * (word.length - 1);
 
         if (endR >= 0 && endR < size && endC >= 0 && endC < size) {
-          // Check collision
           let fits = true;
           for (let i = 0; i < word.length; i++) {
             const r = startR + dir.dr * i;
@@ -121,7 +129,6 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
       }
     });
 
-    // Fill remaining cells with random Turkish letters
     const finalGrid: GridCell[][] = newGrid.map((row, r) =>
       row.map((cell, c) => ({
         r,
@@ -133,6 +140,7 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
     setGrid(finalGrid);
     setPlacedWords(placed);
     setFoundWords([]);
+    foundWordsRef.current = [];
   };
 
   // Timer loop
@@ -147,7 +155,9 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
             finishGame();
             return 0;
           }
-          return prev - 1;
+          const next = prev - 1;
+          timeLeftRef.current = next;
+          return next;
         });
       } else {
         setMultiTurnLeft((prev) => {
@@ -165,18 +175,19 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
 
   // Pointer Events Selection
   const handlePointerDown = (r: number, c: number) => {
+    if (isFinishedRef.current) return;
     setStartCell({ r, c });
     setCurrentCell({ r, c });
   };
 
   const handlePointerEnter = (r: number, c: number) => {
-    if (startCell) {
+    if (startCell && !isFinishedRef.current) {
       setCurrentCell({ r, c });
     }
   };
 
   const handlePointerUp = () => {
-    if (!startCell || !currentCell) return;
+    if (!startCell || !currentCell || isFinishedRef.current) return;
 
     const selectedCells = getStraightLineCells(startCell, currentCell);
     const selectedText = selectedCells.map(({ r, c }) => grid[r][c].letter).join('');
@@ -191,7 +202,10 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
 
-      setFoundWords((prev) => [...prev, match.word]);
+      const nextFound = [...foundWordsRef.current, match.word];
+      foundWordsRef.current = nextFound;
+      setFoundWords(nextFound);
+
       setPlacedWords((prev) =>
         prev.map((pw) => (pw.word === match.word ? { ...pw, found: true } : pw))
       );
@@ -199,11 +213,13 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
       if (mode === 'multi') {
         const p = players[currentPlayerIdx];
         const earned = match.word.length * 10;
-        setPlayerScores((prev) => ({ ...prev, [p.id]: prev[p.id] + earned }));
+        const newScore = (playerScoresRef.current[p.id] || 0) + earned;
+        playerScoresRef.current[p.id] = newScore;
+        setPlayerScores((prev) => ({ ...prev, [p.id]: newScore }));
       }
 
       // Check if all words are found!
-      if (foundWords.length + 1 >= placedWords.length) {
+      if (nextFound.length >= placedWords.length) {
         setTimeout(() => finishGame(), 500);
       }
     } else {
@@ -226,7 +242,6 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
     const stepR = dr === 0 ? 0 : dr / Math.abs(dr);
     const stepC = dc === 0 ? 0 : dc / Math.abs(dc);
 
-    // Only allow straight horizontal, vertical, diagonal lines
     if (Math.abs(dr) !== 0 && Math.abs(dc) !== 0 && Math.abs(dr) !== Math.abs(dc)) {
       return [start];
     }
@@ -239,6 +254,7 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
   };
 
   const handleHint = () => {
+    if (isFinishedRef.current) return;
     const unfound = placedWords.find((pw) => !pw.found);
     if (unfound && unfound.cells.length > 0) {
       playBeepSound(700, 0.1, soundEnabled);
@@ -252,21 +268,21 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
     isFinishedRef.current = true;
 
     if (mode === 'single') {
-      const score = foundWords.length * 15;
+      const score = foundWordsRef.current.length * 15;
       onFinishGame([
         {
           playerId: players[0].id,
           score,
           stats: {
-            'Bulunan Kelime': `${foundWords.length}/${placedWords.length}`,
-            'Kalan Süre': `${timeLeft}s`,
+            'Bulunan Kelime': `${foundWordsRef.current.length}/${placedWords.length}`,
+            'Kalan Süre': `${timeLeftRef.current}s`,
           },
         },
       ]);
     } else {
       const results = players.map((p) => ({
         playerId: p.id,
-        score: playerScores[p.id] || 0,
+        score: playerScoresRef.current[p.id] || 0,
       }));
       onFinishGame(results);
     }
@@ -294,7 +310,7 @@ export const WordSearchGame: React.FC<WordSearchGameProps> = ({
             </span>
           ) : (
             <span className="text-xs font-black text-cyan-400">
-              Sıra: {players[currentPlayerIdx]?.name} ({multiTurnLeft}s)
+              Sıra: {players[currentPlayerIdx]?.name} (Skor: {playerScores[players[currentPlayerIdx]?.id] || 0}) ({multiTurnLeft}s)
             </span>
           )}
 

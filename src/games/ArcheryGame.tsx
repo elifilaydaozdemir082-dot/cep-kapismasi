@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Target, Wind } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
@@ -41,6 +41,15 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  const isFinishedRef = useRef<boolean>(false);
+  const playerScoresRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    players.forEach((p) => (initial[p.id] = 0));
+    playerScoresRef.current = initial;
+  }, [players]);
+
   const windsList: WindConfig[] = [
     { x: -15, y: 0, label: 'Sol Yönlü Rüzgâr' },
     { x: 22, y: -8, label: 'Sağ Yönlü Rüzgâr' },
@@ -69,12 +78,13 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   }, [isCharging]);
 
   const handleStartAim = () => {
+    if (isFinishedRef.current) return;
     setIsCharging(true);
     setPower(0);
   };
 
   const handleReleaseAim = () => {
-    if (!isCharging) return;
+    if (!isCharging || isFinishedRef.current) return;
     setIsCharging(false);
 
     const finalX = Math.min(95, Math.max(5, aimPos.x + wind.x * (power / 100)));
@@ -113,9 +123,11 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     if (score > 0) {
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
+      const newScore = (playerScoresRef.current[currentPlayer.id] || 0) + score;
+      playerScoresRef.current[currentPlayer.id] = newScore;
       setPlayerScores((prev) => ({
         ...prev,
-        [currentPlayer.id]: prev[currentPlayer.id] + score,
+        [currentPlayer.id]: newScore,
       }));
     } else {
       playBeepSound(200, 0.3, soundEnabled);
@@ -146,11 +158,14 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     const results = players.map((p) => ({
       playerId: p.id,
-      score: playerScores[p.id] || 0,
+      score: playerScoresRef.current[p.id] || 0,
       stats: {
-        'Toplam Puan': playerScores[p.id] || 0,
+        'Toplam Puan': playerScoresRef.current[p.id] || 0,
       },
     }));
 
@@ -168,6 +183,9 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
         <div className="flex items-center gap-3 text-xs font-black">
           <span style={{ color: currentPlayer.color }}>{currentPlayer.name}</span>
+          <span className="text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
+            Skor: {playerScores[currentPlayer.id] || 0}
+          </span>
           <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full">
             Atış: {currentShot} / {totalShots}
           </span>

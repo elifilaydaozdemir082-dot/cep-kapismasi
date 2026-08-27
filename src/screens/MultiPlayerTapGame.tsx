@@ -22,11 +22,17 @@ export const MultiPlayerTapGame: React.FC<MultiPlayerTapGameProps> = ({
     { id: number; playerId: string; x: number; y: number }[]
   >([]);
   const isFinishedRef = useRef<boolean>(false);
+  const playersRef = useRef<Player[]>(players);
 
-  const playersRef = useRef<Player[]>(playerState);
-  useEffect(() => {
-    playersRef.current = playerState;
-  }, [playerState]);
+  // Sync ref immediately whenever player score changes
+  const addPlayerScore = (playerId: string) => {
+    if (isFinishedRef.current) return;
+    const updated = playersRef.current.map((p) =>
+      p.id === playerId ? { ...p, score: p.score + 1 } : p
+    );
+    playersRef.current = updated;
+    setPlayerState(updated);
+  };
 
   const handleTimeFinish = () => {
     if (isFinishedRef.current) return;
@@ -46,18 +52,14 @@ export const MultiPlayerTapGame: React.FC<MultiPlayerTapGameProps> = ({
   ) => {
     if (!isRunning || isFinishedRef.current) return;
 
-    // Prevent any default browser touch behavior
     e.preventDefault();
     e.stopPropagation();
 
-    setPlayerState((prev) =>
-      prev.map((p) => (p.id === playerId ? { ...p, score: p.score + 1 } : p))
-    );
+    addPlayerScore(playerId);
 
     playTapSound(soundEnabled);
     triggerVibration(15, vibrationEnabled);
 
-    // Add visual tap ripple inside the player's zone
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -84,10 +86,7 @@ export const MultiPlayerTapGame: React.FC<MultiPlayerTapGameProps> = ({
       if (idx !== undefined && idx < players.length) {
         e.preventDefault();
         const targetId = players[idx].id;
-
-        setPlayerState((prev) =>
-          prev.map((p) => (p.id === targetId ? { ...p, score: p.score + 1 } : p))
-        );
+        addPlayerScore(targetId);
         playTapSound(soundEnabled);
         triggerVibration(15, vibrationEnabled);
       }
@@ -97,7 +96,6 @@ export const MultiPlayerTapGame: React.FC<MultiPlayerTapGameProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isRunning, players, soundEnabled, vibrationEnabled]);
 
-  // Layout grid CSS based on player count
   const count = players.length;
   const gridClasses =
     count === 2

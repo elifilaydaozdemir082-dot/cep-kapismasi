@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Target, Trophy } from 'lucide-react';
 import type { DifficultyLevel, Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
@@ -35,21 +35,30 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   const [isShooting, setIsShooting] = useState<boolean>(false);
   const [lastShotFeedback, setLastShotFeedback] = useState<string | null>(null);
 
+  const isFinishedRef = useRef<boolean>(false);
+  const playerScoresRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    players.forEach((p) => (initial[p.id] = 0));
+    playerScoresRef.current = initial;
+  }, [players]);
+
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (isShooting) return;
+    if (isShooting || isFinishedRef.current) return;
     setDragStart({ x: e.clientX, y: e.clientY });
     setDragCurrent({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragStart || isShooting) return;
+    if (!dragStart || isShooting || isFinishedRef.current) return;
     setDragCurrent({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerUp = () => {
-    if (!dragStart || !dragCurrent || isShooting) {
+    if (!dragStart || !dragCurrent || isShooting || isFinishedRef.current) {
       setDragStart(null);
       setDragCurrent(null);
       return;
@@ -96,9 +105,11 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     if (pts > 0) {
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
+      const newScore = (playerScoresRef.current[currentPlayer.id] || 0) + pts;
+      playerScoresRef.current[currentPlayer.id] = newScore;
       setPlayerScores((prev) => ({
         ...prev,
-        [currentPlayer.id]: prev[currentPlayer.id] + pts,
+        [currentPlayer.id]: newScore,
       }));
     } else {
       playBeepSound(200, 0.3, soundEnabled);
@@ -132,11 +143,14 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     const results = players.map((p) => ({
       playerId: p.id,
-      score: playerScores[p.id] || 0,
+      score: playerScoresRef.current[p.id] || 0,
       stats: {
-        'Basket Puanı': playerScores[p.id] || 0,
+        'Basket Puanı': playerScoresRef.current[p.id] || 0,
       },
     }));
 
@@ -153,7 +167,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         </div>
 
         <div className="flex items-center gap-3 text-xs font-black">
-          <span style={{ color: currentPlayer.color }}>{currentPlayer.name}</span>
+          <span style={{ color: currentPlayer.color }}>{currentPlayer.name} (Skor: {playerScores[currentPlayer.id] || 0})</span>
           <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full">
             Atış: {currentShot} / {totalShots}
           </span>

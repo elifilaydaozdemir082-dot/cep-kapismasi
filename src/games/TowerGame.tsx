@@ -36,10 +36,12 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   const animRef = useRef<number | null>(null);
+  const isFinishedRef = useRef<boolean>(false);
+  const scoreRef = useRef<number>(1);
 
   // Moving Block Animation
   useEffect(() => {
-    if (isGameOver) return;
+    if (isGameOver || isFinishedRef.current) return;
 
     const loop = () => {
       setMovingBlock((prev) => {
@@ -67,7 +69,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   }, [isGameOver]);
 
   const handlePlaceBlock = () => {
-    if (isGameOver) return;
+    if (isGameOver || isFinishedRef.current) return;
 
     const lastBlock = blocks[blocks.length - 1];
     const diff = movingBlock.x - lastBlock.x;
@@ -104,7 +106,11 @@ export const TowerGame: React.FC<TowerGameProps> = ({
     };
 
     setBlocks((prev) => [...prev.slice(-8), newBlock]);
-    setScore((s) => s + 1);
+    setScore((s) => {
+      const next = s + 1;
+      scoreRef.current = next;
+      return next;
+    });
 
     setMovingBlock({
       width: newWidth,
@@ -116,12 +122,15 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     onFinishGame([
       {
         playerId: players[0].id,
-        score,
+        score: scoreRef.current,
         stats: {
-          'Kule Katı': score,
+          'Kule Katı': scoreRef.current,
         },
       },
     ]);

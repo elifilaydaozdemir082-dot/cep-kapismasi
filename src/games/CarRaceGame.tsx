@@ -40,7 +40,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
   const [lives, setLives] = useState<number>(3);
   const [hasShield, setHasShield] = useState<boolean>(false);
   const [isNitro, setIsNitro] = useState<boolean>(false);
-  const [streakMultiplier, setStreakMultiplier] = useState<number>(1);
+  const [streakMultiplier] = useState<number>(1);
   const [feedbackText, setFeedbackText] = useState<string | null>(null);
 
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -56,6 +56,14 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
   const animFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(performance.now());
   const isFinishedRef = useRef<boolean>(false);
+  const distanceRef = useRef<number>(0);
+  const multiScoresRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    players.forEach((p) => (initial[p.id] = 0));
+    multiScoresRef.current = initial;
+  }, [players]);
 
   const baseSpeed = difficulty === 'easy' ? 0.35 : difficulty === 'normal' ? 0.5 : 0.7;
 
@@ -69,7 +77,11 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       const speedFactor = isNitro ? 2.0 : 1.0;
       const currentSpeed = baseSpeed * speedFactor;
 
-      setDistance((prev) => Math.round(prev + currentSpeed * (dt / 16)));
+      setDistance((prev) => {
+        const next = Math.round(prev + currentSpeed * (dt / 16));
+        distanceRef.current = next;
+        return next;
+      });
 
       setObstacles((prev) => {
         const updated = prev
@@ -192,17 +204,19 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       return Math.max(0, nextLives);
     });
 
-    setStreakMultiplier(1);
     setFeedbackText('ÇARPIŞMA! (-1 CAN)');
     setTimeout(() => setFeedbackText(null), 1200);
   };
 
   const handleMultiTap = (playerId: string) => {
+    if (isFinishedRef.current || multiTimeLeft <= 0) return;
     playTapSound(soundEnabled);
     triggerVibration(10, vibrationEnabled);
+    const newScore = (multiScoresRef.current[playerId] || 0) + 15;
+    multiScoresRef.current[playerId] = newScore;
     setMultiTapScores((prev) => ({
       ...prev,
-      [playerId]: (prev[playerId] || 0) + 15,
+      [playerId]: newScore,
     }));
   };
 
@@ -210,12 +224,13 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
     if (isFinishedRef.current) return;
     isFinishedRef.current = true;
 
+    const finalDistance = distanceRef.current;
     onFinishGame([
       {
         playerId: players[0].id,
-        score: distance,
+        score: finalDistance,
         stats: {
-          'Mesafe': `${distance} m`,
+          'Mesafe': `${finalDistance} m`,
           'En Yüksek Seri': `x${streakMultiplier}`,
         },
       },
@@ -228,9 +243,9 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
 
     const results = players.map((p) => ({
       playerId: p.id,
-      score: multiTapScores[p.id] || 0,
+      score: multiScoresRef.current[p.id] || 0,
       stats: {
-        'Mesafe': `${multiTapScores[p.id] || 0} m`,
+        'Mesafe': `${multiScoresRef.current[p.id] || 0} m`,
       },
     }));
 

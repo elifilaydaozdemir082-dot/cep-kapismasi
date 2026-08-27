@@ -23,17 +23,25 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
   const [currentRound, setCurrentRound] = useState<number>(1);
   const totalRounds = 5;
 
-  const [playerScores, setPlayerScores] = useState<Record<string, number>>(() => {
+  const [_playerScores, setPlayerScores] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     players.forEach((p) => (initial[p.id] = 0));
     return initial;
   });
 
-  const [bestReactionMs, setBestReactionMs] = useState<number | null>(null);
+  const [_bestReactionMs, setBestReactionMs] = useState<number | null>(null);
 
   const goTimeoutRef = useRef<any>(null);
   const goStartTimeRef = useRef<number>(0);
   const isFinishedRef = useRef<boolean>(false);
+  const bestReactionMsRef = useRef<number | null>(null);
+  const playerScoresRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    players.forEach((p) => (initial[p.id] = 0));
+    playerScoresRef.current = initial;
+  }, [players]);
 
   useEffect(() => {
     startNewRound();
@@ -57,6 +65,8 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
   };
 
   const handleTap = (playerId: string) => {
+    if (isFinishedRef.current) return;
+
     if (roundState === 'ready') {
       if (goTimeoutRef.current) clearTimeout(goTimeoutRef.current);
       setRoundState('foul');
@@ -75,12 +85,15 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
       playFanfareSound(soundEnabled);
       triggerVibration(15, vibrationEnabled);
 
+      const newScore = (playerScoresRef.current[playerId] || 0) + 1;
+      playerScoresRef.current[playerId] = newScore;
       setPlayerScores((prev) => ({
         ...prev,
-        [playerId]: prev[playerId] + 1,
+        [playerId]: newScore,
       }));
 
-      if (bestReactionMs === null || reactionMs < bestReactionMs) {
+      if (bestReactionMsRef.current === null || reactionMs < bestReactionMsRef.current) {
+        bestReactionMsRef.current = reactionMs;
         setBestReactionMs(reactionMs);
       }
 
@@ -103,7 +116,7 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
     isFinishedRef.current = true;
 
     if (mode === 'single') {
-      const finalMs = bestReactionMs || 500;
+      const finalMs = bestReactionMsRef.current || 500;
       onFinishGame([
         {
           playerId: players[0].id,
@@ -114,15 +127,17 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
         },
       ]);
     } else {
-      const sorted = [...players].sort((a, b) => (playerScores[b.id] || 0) - (playerScores[a.id] || 0));
+      const sorted = [...players].sort(
+        (a, b) => (playerScoresRef.current[b.id] || 0) - (playerScoresRef.current[a.id] || 0)
+      );
       const winner = sorted[0];
       setStatusMessage(`${winner?.name || 'Oyuncu'} KAZANDI!`);
 
       const results = players.map((p) => ({
         playerId: p.id,
-        score: playerScores[p.id] || 0,
+        score: playerScoresRef.current[p.id] || 0,
         stats: {
-          'Kazanılan Raund': playerScores[p.id] || 0,
+          'Kazanılan Raund': playerScoresRef.current[p.id] || 0,
         },
       }));
 

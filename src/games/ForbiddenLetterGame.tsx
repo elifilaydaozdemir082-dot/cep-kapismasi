@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Ban, Send } from 'lucide-react';
 import type { Player, WordCategory } from '../types/game';
 import { wordService } from '../services/wordService';
@@ -39,6 +39,9 @@ export const ForbiddenLetterGame: React.FC<ForbiddenLetterGameProps> = ({
     return initial;
   });
 
+  const isFinishedRef = useRef<boolean>(false);
+  const scoreRef = useRef<number>(0);
+
   const categoriesList: { id: WordCategory; name: string }[] = [
     { id: 'hayvanlar', name: 'Hayvanlar' },
     { id: 'gunluk', name: 'Günlük Hayat' },
@@ -57,6 +60,7 @@ export const ForbiddenLetterGame: React.FC<ForbiddenLetterGameProps> = ({
   }, []);
 
   const generateNewChallenge = () => {
+    if (isFinishedRef.current) return;
     const randCat = categoriesList[Math.floor(Math.random() * categoriesList.length)];
     const randLetter = TURKISH_ALPHABET[Math.floor(Math.random() * TURKISH_ALPHABET.length)];
     setCategory(randCat);
@@ -67,6 +71,8 @@ export const ForbiddenLetterGame: React.FC<ForbiddenLetterGameProps> = ({
 
   // Timer loop
   useEffect(() => {
+    if (isFinishedRef.current) return;
+
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -91,6 +97,7 @@ export const ForbiddenLetterGame: React.FC<ForbiddenLetterGameProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isFinishedRef.current) return;
     const sanitized = sanitizeWord(userInput);
 
     if (!sanitized) {
@@ -134,7 +141,9 @@ export const ForbiddenLetterGame: React.FC<ForbiddenLetterGameProps> = ({
     playFanfareSound(soundEnabled);
     triggerVibration(20, vibrationEnabled);
     setUsedWords((prev) => [...prev, sanitized]);
-    setScore((s) => s + 1);
+    const nextScore = scoreRef.current + 1;
+    scoreRef.current = nextScore;
+    setScore(nextScore);
 
     if (mode === 'single') {
       generateNewChallenge();
@@ -163,12 +172,15 @@ export const ForbiddenLetterGame: React.FC<ForbiddenLetterGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     onFinishGame([
       {
         playerId: currentPlayer.id,
-        score,
+        score: scoreRef.current,
         stats: {
-          'Geçerli Kelime': score,
+          'Geçerli Kelime': scoreRef.current,
         },
       },
     ]);

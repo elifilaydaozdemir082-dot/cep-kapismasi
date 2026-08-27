@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, Check, X, ShieldAlert, RotateCcw, Play } from 'lucide-react';
 import type { Player, TabuCardItem } from '../types/game';
 import { wordService } from '../services/wordService';
@@ -27,20 +27,25 @@ export const TabuGame: React.FC<TabuGameProps> = ({
   const [turnState, setTurnState] = useState<'privacy' | 'playing' | 'turn-summary'>('privacy');
   const [timeLeft, setTimeLeft] = useState<number>(60);
 
+  const isFinishedRef = useRef<boolean>(false);
+  const playerScoresRef = useRef<Record<string, number>>({});
+  const playerTurnStatsRef = useRef<Record<string, { correct: number; pass: number; tabu: number }>>({});
+
+  useEffect(() => {
+    const initialScores: Record<string, number> = {};
+    const initialStats: Record<string, any> = {};
+    players.forEach((p) => {
+      initialScores[p.id] = 0;
+      initialStats[p.id] = { correct: 0, pass: 0, tabu: 0 };
+    });
+    playerScoresRef.current = initialScores;
+    playerTurnStatsRef.current = initialStats;
+  }, [players]);
+
   // Stats
   const [playerScores, setPlayerScores] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     players.forEach((p) => (initial[p.id] = 0));
-    return initial;
-  });
-
-  const [playerTurnStats, setPlayerTurnStats] = useState<
-    Record<string, { correct: number; pass: number; tabu: number }>
-  >(() => {
-    const initial: Record<string, any> = {};
-    players.forEach((p) => {
-      initial[p.id] = { correct: 0, pass: 0, tabu: 0 };
-    });
     return initial;
   });
 
@@ -56,7 +61,6 @@ export const TabuGame: React.FC<TabuGameProps> = ({
   const pickNextCard = () => {
     const available = cards.filter((c) => !usedCardIds.includes(c.id));
     if (available.length === 0) {
-      // Loop cards if ran out
       const random = cards[Math.floor(Math.random() * cards.length)];
       setCurrentCard(random);
       return;
@@ -68,7 +72,7 @@ export const TabuGame: React.FC<TabuGameProps> = ({
 
   // Turn Timer Loop
   useEffect(() => {
-    if (turnState !== 'playing') return;
+    if (turnState !== 'playing' || isFinishedRef.current) return;
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -85,6 +89,7 @@ export const TabuGame: React.FC<TabuGameProps> = ({
   }, [turnState]);
 
   const handleStartTurn = () => {
+    if (isFinishedRef.current) return;
     pickNextCard();
     setTimeLeft(60);
     setTurnCurrentStats({ correct: 0, pass: 0, tabu: 0 });
@@ -93,62 +98,63 @@ export const TabuGame: React.FC<TabuGameProps> = ({
   };
 
   const handleCorrect = () => {
-    if (turnState !== 'playing') return;
+    if (turnState !== 'playing' || isFinishedRef.current) return;
     playFanfareSound(soundEnabled);
     triggerVibration(15, vibrationEnabled);
 
+    const newScore = (playerScoresRef.current[currentPlayer.id] || 0) + 1;
+    playerScoresRef.current[currentPlayer.id] = newScore;
     setPlayerScores((prev) => ({
       ...prev,
-      [currentPlayer.id]: prev[currentPlayer.id] + 1,
+      [currentPlayer.id]: newScore,
     }));
 
     setTurnCurrentStats((prev) => ({ ...prev, correct: prev.correct + 1 }));
-    setPlayerTurnStats((prev) => ({
-      ...prev,
-      [currentPlayer.id]: {
-        ...prev[currentPlayer.id],
-        correct: prev[currentPlayer.id].correct + 1,
-      },
-    }));
+
+    const currentStats = playerTurnStatsRef.current[currentPlayer.id] || { correct: 0, pass: 0, tabu: 0 };
+    playerTurnStatsRef.current[currentPlayer.id] = {
+      ...currentStats,
+      correct: currentStats.correct + 1,
+    };
 
     pickNextCard();
   };
 
   const handlePass = () => {
-    if (turnState !== 'playing') return;
+    if (turnState !== 'playing' || isFinishedRef.current) return;
     playBeepSound(400, 0.1, soundEnabled);
     triggerVibration(10, vibrationEnabled);
 
     setTurnCurrentStats((prev) => ({ ...prev, pass: prev.pass + 1 }));
-    setPlayerTurnStats((prev) => ({
-      ...prev,
-      [currentPlayer.id]: {
-        ...prev[currentPlayer.id],
-        pass: prev[currentPlayer.id].pass + 1,
-      },
-    }));
+
+    const currentStats = playerTurnStatsRef.current[currentPlayer.id] || { correct: 0, pass: 0, tabu: 0 };
+    playerTurnStatsRef.current[currentPlayer.id] = {
+      ...currentStats,
+      pass: currentStats.pass + 1,
+    };
 
     pickNextCard();
   };
 
   const handleTabu = () => {
-    if (turnState !== 'playing') return;
+    if (turnState !== 'playing' || isFinishedRef.current) return;
     playBeepSound(200, 0.3, soundEnabled);
     triggerVibration([30, 40], vibrationEnabled);
 
+    const newScore = Math.max(0, (playerScoresRef.current[currentPlayer.id] || 0) - 1);
+    playerScoresRef.current[currentPlayer.id] = newScore;
     setPlayerScores((prev) => ({
       ...prev,
-      [currentPlayer.id]: Math.max(0, prev[currentPlayer.id] - 1),
+      [currentPlayer.id]: newScore,
     }));
 
     setTurnCurrentStats((prev) => ({ ...prev, tabu: prev.tabu + 1 }));
-    setPlayerTurnStats((prev) => ({
-      ...prev,
-      [currentPlayer.id]: {
-        ...prev[currentPlayer.id],
-        tabu: prev[currentPlayer.id].tabu + 1,
-      },
-    }));
+
+    const currentStats = playerTurnStatsRef.current[currentPlayer.id] || { correct: 0, pass: 0, tabu: 0 };
+    playerTurnStatsRef.current[currentPlayer.id] = {
+      ...currentStats,
+      tabu: currentStats.tabu + 1,
+    };
 
     pickNextCard();
   };
@@ -159,17 +165,19 @@ export const TabuGame: React.FC<TabuGameProps> = ({
   };
 
   const handleNextPlayerTurn = () => {
+    if (isFinishedRef.current) return;
     const isLastPlayer = currentPlayerIdx === players.length - 1;
 
     if (isLastPlayer) {
       const nextRound = currentRound + 1;
       if (nextRound > 3) {
         // Game ends!
+        isFinishedRef.current = true;
         const results = players.map((p) => {
-          const stats = playerTurnStats[p.id];
+          const stats = playerTurnStatsRef.current[p.id] || { correct: 0, pass: 0, tabu: 0 };
           return {
             playerId: p.id,
-            score: playerScores[p.id],
+            score: playerScoresRef.current[p.id] || 0,
             stats: {
               Doğru: stats.correct,
               Pas: stats.pass,
@@ -245,7 +253,7 @@ export const TabuGame: React.FC<TabuGameProps> = ({
               <span>⏱️ {timeLeft}s</span>
             </div>
             <div className="text-amber-400 font-black text-lg">
-              Skor: {playerScores[currentPlayer.id]}
+              Skor: {playerScores[currentPlayer.id] || 0}
             </div>
           </div>
 

@@ -39,7 +39,17 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
 
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [totalCount, setTotalCount] = useState<number>(0);
+
   const isFinishedRef = useRef<boolean>(false);
+  const playerScoresRef = useRef<Record<string, number>>({});
+  const correctCountRef = useRef<number>(0);
+  const totalCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    players.forEach((p) => (initial[p.id] = 0));
+    playerScoresRef.current = initial;
+  }, [players]);
 
   useEffect(() => {
     const loaded = quizService.getRandomQuestions(categoryId, 20);
@@ -63,7 +73,7 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
   }, []);
 
   const handleSelectTrueFalse = (choice: 'Doğru' | 'Yanlış', playerId?: string) => {
-    if (isAnswerLocked || questions.length === 0) return;
+    if (isAnswerLocked || questions.length === 0 || isFinishedRef.current) return;
 
     const currentQ = questions[currentIdx];
     const isCorrectOptionIndex = currentQ.shuffledCorrectIndex;
@@ -75,13 +85,20 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
     if (mode === 'single') {
       setSelectedOption(choice);
       setIsAnswerLocked(true);
-      setTotalCount((t) => t + 1);
+      const nextTotal = totalCountRef.current + 1;
+      totalCountRef.current = nextTotal;
+      setTotalCount(nextTotal);
 
       if (userIsCorrect) {
         playFanfareSound(soundEnabled);
         triggerVibration([20, 30], vibrationEnabled);
-        setCorrectCount((c) => c + 1);
-        setPlayerScores((prev) => ({ ...prev, [players[0].id]: prev[players[0].id] + 100 }));
+        const nextCorrect = correctCountRef.current + 1;
+        correctCountRef.current = nextCorrect;
+        setCorrectCount(nextCorrect);
+
+        const newScore = (playerScoresRef.current[players[0].id] || 0) + 100;
+        playerScoresRef.current[players[0].id] = newScore;
+        setPlayerScores((prev) => ({ ...prev, [players[0].id]: newScore }));
       } else {
         playBeepSound(200, 0.3, soundEnabled);
         triggerVibration(40, vibrationEnabled);
@@ -104,7 +121,9 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
           const pChoice = updated[p.id];
           const pIsCorrect = (pChoice === 'Doğru' && isStatementTrue) || (pChoice === 'Yanlış' && !isStatementTrue);
           if (pIsCorrect) {
-            setPlayerScores((prev) => ({ ...prev, [p.id]: prev[p.id] + 100 }));
+            const newScore = (playerScoresRef.current[p.id] || 0) + 100;
+            playerScoresRef.current[p.id] = newScore;
+            setPlayerScores((prev) => ({ ...prev, [p.id]: newScore }));
           }
         });
 
@@ -122,13 +141,13 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
     isFinishedRef.current = true;
 
     const results = players.map((p) => {
-      const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+      const accuracy = totalCountRef.current > 0 ? Math.round((correctCountRef.current / totalCountRef.current) * 100) : 0;
       return {
         playerId: p.id,
-        score: playerScores[p.id] || 0,
+        score: playerScoresRef.current[p.id] || 0,
         stats: {
-          'Doğru Sayısı': correctCount,
-          'Doğruluk Oranı': `${accuracy}%`,
+          'Doğru Sayısı': correctCountRef.current,
+          'Doğruluk Oranı': `%${accuracy}`,
         },
       };
     });
@@ -149,9 +168,14 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
           <span className="font-extrabold text-sm text-white">Doğru mu, Yanlış mı?</span>
         </div>
 
-        <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
-          Süre: {timeLeft}s
-        </span>
+        <div className="flex items-center gap-3 text-xs font-black">
+          <span className="text-emerald-400">
+            Doğru: {correctCount}/{totalCount} (Skor: {playerScores[players[0]?.id] || 0})
+          </span>
+          <span className="text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
+            Süre: {timeLeft}s
+          </span>
+        </div>
       </div>
 
       {/* Main Statement Card */}
@@ -198,34 +222,29 @@ export const TrueFalsePlayScreen: React.FC<TrueFalsePlayScreenProps> = ({
               Gizli Seçim Yapın:
             </span>
             <div className="grid grid-cols-2 gap-2">
-              {players.map((p) => {
-                const hasSelected = !!multiSelections[p.id];
-                return (
-                  <div key={p.id} className="p-2 bg-slate-900 border border-slate-800 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs font-black uppercase" style={{ color: p.color }}>
-                      {p.name}
-                    </span>
-                    {!hasSelected ? (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleSelectTrueFalse('Yanlış', p.id)}
-                          className="px-2.5 py-1 bg-rose-600 text-white rounded-lg font-black text-xs"
-                        >
-                          Yanlış
-                        </button>
-                        <button
-                          onClick={() => handleSelectTrueFalse('Doğru', p.id)}
-                          className="px-2.5 py-1 bg-emerald-500 text-slate-950 rounded-lg font-black text-xs"
-                        >
-                          Doğru
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-black text-emerald-400">SEÇİLDİ</span>
-                    )}
+              {players.map((p) => (
+                <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 text-center space-y-2">
+                  <span className="text-xs font-black" style={{ color: p.color }}>
+                    {p.name}
+                  </span>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      onClick={() => handleSelectTrueFalse('Yanlış', p.id)}
+                      disabled={isAnswerLocked || multiSelections[p.id] !== undefined}
+                      className="py-2.5 rounded-xl bg-rose-600/20 border border-rose-500/40 text-rose-400 text-xs font-black active:scale-95 disabled:opacity-40"
+                    >
+                      Y
+                    </button>
+                    <button
+                      onClick={() => handleSelectTrueFalse('Doğru', p.id)}
+                      disabled={isAnswerLocked || multiSelections[p.id] !== undefined}
+                      className="py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-black active:scale-95 disabled:opacity-40"
+                    >
+                      D
+                    </button>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}

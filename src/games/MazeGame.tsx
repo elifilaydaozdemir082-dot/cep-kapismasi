@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Compass, Key, Navigation } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
@@ -22,15 +22,25 @@ export const MazeGame: React.FC<MazeGameProps> = ({
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  const elapsedTimeRef = useRef<number>(0);
+  const isFinishedRef = useRef<boolean>(false);
+
   useEffect(() => {
     const timer = setInterval(() => {
-      setElapsedTime((prev) => +(prev + 0.1).toFixed(1));
+      if (isFinishedRef.current) return;
+      setElapsedTime((prev) => {
+        const next = +(prev + 0.1).toFixed(1);
+        elapsedTimeRef.current = next;
+        return next;
+      });
     }, 100);
 
     return () => clearInterval(timer);
   }, []);
 
   const handleMove = (dx: number, dy: number) => {
+    if (isFinishedRef.current) return;
+
     setPlayerPos((prev) => {
       const nextX = Math.min(85, Math.max(10, prev.x + dx));
       const nextY = Math.min(85, Math.max(10, prev.y + dy));
@@ -40,7 +50,11 @@ export const MazeGame: React.FC<MazeGameProps> = ({
         playBeepSound(150, 0.2, soundEnabled);
         triggerVibration(40, vibrationEnabled);
         setFeedback('DUVARA ÇARPTIN! (+0.2s CEZA)');
-        setElapsedTime((t) => +(t + 0.2).toFixed(1));
+        setElapsedTime((t) => {
+          const next = +(t + 0.2).toFixed(1);
+          elapsedTimeRef.current = next;
+          return next;
+        });
         setTimeout(() => setFeedback(null), 1000);
         return prev;
       }
@@ -56,14 +70,18 @@ export const MazeGame: React.FC<MazeGameProps> = ({
 
       // Exit check
       if (hasKey && nextX > 75 && nextY > 75) {
-        finishGame(+(elapsedTime).toFixed(1));
+        finishGame();
       }
 
       return { x: nextX, y: nextY };
     });
   };
 
-  const finishGame = (finalTime: number) => {
+  const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
+    const finalTime = elapsedTimeRef.current;
     playFanfareSound(soundEnabled);
     onFinishGame([
       {

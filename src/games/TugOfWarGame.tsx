@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Swords, Bot } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
@@ -20,13 +20,14 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
 }) => {
   const [ropePosition, setRopePosition] = useState<number>(50); // 0..100%, 50 is center
   const [isFinished, setIsFinished] = useState<boolean>(false);
+  const isFinishedRef = useRef<boolean>(false);
 
   const player1 = players[0];
   const player2 = players[1] || { id: 'bot', name: 'Bot Rakip', color: '#EF4444', score: 0 };
 
   // Single player AI pull loop
   useEffect(() => {
-    if (mode !== 'single' || isFinished) return;
+    if (mode !== 'single' || isFinishedRef.current) return;
 
     const interval = setInterval(() => {
       setRopePosition((prev) => {
@@ -44,7 +45,7 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
   }, [mode, isFinished]);
 
   const handlePullLeft = () => {
-    if (isFinished) return;
+    if (isFinishedRef.current) return;
     playTapSound(soundEnabled);
     triggerVibration(10, vibrationEnabled);
 
@@ -59,7 +60,7 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
   };
 
   const handlePullRight = () => {
-    if (isFinished || mode === 'single') return;
+    if (isFinishedRef.current || mode === 'single') return;
     playTapSound(soundEnabled);
     triggerVibration(10, vibrationEnabled);
 
@@ -74,7 +75,8 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
   };
 
   const handleGameEnd = (winner: Player) => {
-    if (isFinished) return;
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
     setIsFinished(true);
 
     if (winner.id === player1.id) {

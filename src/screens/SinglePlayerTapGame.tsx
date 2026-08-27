@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Zap, Target, Flame, ShieldAlert, Star } from 'lucide-react';
 import type { DifficultyLevel, MedalType, Player, SinglePlayerRecord } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
+import {
+  calculateTargetScore,
+  getMultiplier,
+  INITIAL_TARGET_GAME_STATE,
+} from '../utils/targetScore';
+import type { TargetGameState } from '../utils/targetScore';
 
 interface SinglePlayerTapGameProps {
   player: Player;
@@ -33,18 +39,55 @@ export const SinglePlayerTapGame: React.FC<SinglePlayerTapGameProps> = ({
   soundEnabled,
   vibrationEnabled,
 }) => {
-  const [score, setScore] = useState<number>(0);
+  const [gameState, setGameState] = useState<TargetGameState>(INITIAL_TARGET_GAME_STATE);
   const [timeLeft, setTimeLeft] = useState<number>(20);
   const [targets, setTargets] = useState<TargetItem[]>([]);
-  const [streak, setStreak] = useState<number>(0);
-  const [maxStreak, setMaxStreak] = useState<number>(0);
   const [feedback, setFeedback] = useState<{ text: string; color: string } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const isFinishedRef = useRef<boolean>(false);
+  const statsRef = useRef<TargetGameState>(INITIAL_TARGET_GAME_STATE);
 
   const spawnIntervalMs = difficulty === 'easy' ? 700 : difficulty === 'normal' ? 500 : 350;
   const targetDurationMs = difficulty === 'easy' ? 1400 : difficulty === 'normal' ? 1000 : 750;
+
+  // Helper to safely update both state and ref
+  const updateStats = (hitType: 'normal' | 'golden' | 'trap' | 'miss') => {
+    if (isFinishedRef.current || statsRef.current.totalAttempts < 0) return;
+    const nextStats = calculateTargetScore(statsRef.current, hitType);
+    statsRef.current = nextStats;
+    setGameState(nextStats);
+    return nextStats;
+  };
+
+  const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
+    const finalStats = statsRef.current;
+    const roundedAccuracy = Math.round(finalStats.accuracy);
+
+    onFinishGame(
+      finalStats.score,
+      false,
+      {
+        score: finalStats.score,
+        date: new Date().toISOString(),
+        playerName: player.name,
+        gameType: 'tap-rush',
+        unit: 'puan',
+        difficulty,
+        medal: 'none',
+      },
+      'none',
+      {
+        'İsabet Oranı': `%${roundedAccuracy}`,
+        'Doğru Hedef': finalStats.hits,
+        'Tuzak Vuruşu': finalStats.trapHits,
+        'En Uzun Seri': finalStats.bestStreak,
+      }
+    );
+  };
 
   // Main Game Countdown Timer
   useEffect(() => {
@@ -65,11 +108,12 @@ export const SinglePlayerTapGame: React.FC<SinglePlayerTapGameProps> = ({
   // Target Spawner Loop
   useEffect(() => {
     const spawner = setInterval(() => {
+      if (timeLeft <= 0 || isFinishedRef.current) return;
       spawnTarget();
     }, spawnIntervalMs);
 
     return () => clearInterval(spawner);
-  }, [difficulty]);
+  }, [difficulty, timeLeft]);
 
   // Target Expiration Loop
   useEffect(() => {
@@ -102,52 +146,43 @@ export const SinglePlayerTapGame: React.FC<SinglePlayerTapGameProps> = ({
   const handleTapTarget = (target: TargetItem, e: React.MouseEvent) => {
     e.stopPropagation();
 
+    if (timeLeft <= 0 || isFinishedRef.current) return;
+
     if (target.type === 'trap') {
       playBeepSound(150, 0.3, soundEnabled);
       triggerVibration(40, vibrationEnabled);
-      setScore((s) => Math.max(0, s - 2));
-      setStreak(0);
-      setFeedback({ text: '-2 TUZAK!', color: 'text-rose-500' });
+      updateStats('trap');
+      setFeedback({ text: '-15 TUZAK!', color: 'text-rose-500' });
     } else if (target.type === 'golden') {
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
-      const earned = 3 + (streak >= 5 ? 2 : 0);
-      setScore((s) => s + earned);
-      const nextStreak = streak + 1;
-      setStreak(nextStreak);
-      setMaxStreak((m) => Math.max(m, nextStreak));
-      setFeedback({ text: `+${earned} ALTIN ISABET!`, color: 'text-amber-400' });
+      const nextStats = updateStats('golden');
+      const multiplier = getMultiplier(nextStats?.currentStreak || 0);
+      const earned = 25 * multiplier;
+      setFeedback({ text: `+${earned} ALTIN İSABET! (x${multiplier})`, color: 'text-amber-400' });
     } else {
       playTapSound(soundEnabled);
       triggerVibration(10, vibrationEnabled);
-      const earned = 1 + (streak >= 5 ? 1 : 0);
-      setScore((s) => s + earned);
-      const nextStreak = streak + 1;
-      setStreak(nextStreak);
-      setMaxStreak((m) => Math.max(m, nextStreak));
+      const nextStats = updateStats('normal');
+      const multiplier = getMultiplier(nextStats?.currentStreak || 0);
+      const earned = 10 * multiplier;
+      if (multiplier > 1) {
+        setFeedback({ text: `+${earned} (x${multiplier})`, color: 'text-cyan-300' });
+      }
     }
 
     setTargets((prev) => prev.filter((t) => t.id !== target.id));
     setTimeout(() => setFeedback(null), 800);
   };
 
-  const finishGame = () => {
-    if (isFinishedRef.current) return;
-    isFinishedRef.current = true;
-
-    onFinishGame(score, false, {
-      score,
-      date: new Date().toISOString(),
-      playerName: player.name,
-      gameType: 'tap-rush',
-      unit: 'puan',
-      difficulty,
-      medal: 'none',
-    }, 'none', {
-      'İsabet Skoru': score,
-      'En Uzun Seri': maxStreak,
-    });
+  const handleContainerClick = () => {
+    if (timeLeft <= 0 || isFinishedRef.current) return;
+    updateStats('miss');
+    setFeedback({ text: 'KAÇTI!', color: 'text-slate-400' });
+    setTimeout(() => setFeedback(null), 600);
   };
+
+  const activeMultiplier = getMultiplier(gameState.currentStreak);
 
   return (
     <div className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none overflow-hidden touch-none p-3 space-y-2">
@@ -162,22 +197,23 @@ export const SinglePlayerTapGame: React.FC<SinglePlayerTapGameProps> = ({
           <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
             Süre: {timeLeft}s
           </span>
-          <span className="text-xs font-black text-cyan-400">Skor: {score}</span>
+          <span className="text-xs font-black text-cyan-400">Skor: {gameState.score}</span>
         </div>
       </div>
 
-      {/* Streak Badge */}
-      {streak >= 5 && (
+      {/* Streak & Multiplier Badge */}
+      {gameState.currentStreak >= 5 && (
         <div className="flex items-center justify-center gap-1.5 bg-amber-400 text-slate-950 font-black text-xs px-4 py-1 rounded-full mx-auto shadow-lg animate-bounce">
           <Flame className="w-4 h-4 fill-current" aria-hidden="true" />
-          <span>SERİ BONUSU KATLANDI! (x2)</span>
+          <span>SERİ BONUSU KATLANDI! (x{activeMultiplier})</span>
         </div>
       )}
 
       {/* Main Target Arena */}
       <div
         ref={containerRef}
-        className="flex-1 relative bg-slate-900 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-4"
+        onClick={handleContainerClick}
+        className="flex-1 relative bg-slate-900 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-4 cursor-crosshair"
       >
         {/* Feedback Banner */}
         {feedback && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Grid, Lightbulb, Check, RotateCcw } from 'lucide-react';
 import type { Player } from '../types/game';
 import { wordService } from '../services/wordService';
@@ -38,6 +38,9 @@ export const AnagramGame: React.FC<AnagramGameProps> = ({
   const [wordsSolved, setWordsSolved] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  const isFinishedRef = useRef<boolean>(false);
+  const wordsSolvedRef = useRef<number>(0);
+
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
   useEffect(() => {
@@ -45,6 +48,7 @@ export const AnagramGame: React.FC<AnagramGameProps> = ({
   }, [currentPlayerIdx]);
 
   const loadNewWord = () => {
+    if (isFinishedRef.current) return;
     const item = wordService.getRandomWord();
     const word = item ? toTurkishUpper(item.word) : 'KALEM';
     setTargetWord(word);
@@ -79,7 +83,7 @@ export const AnagramGame: React.FC<AnagramGameProps> = ({
   }, []);
 
   const handleSelectCard = (card: LetterCard) => {
-    if (card.isUsed) return;
+    if (card.isUsed || isFinishedRef.current) return;
     playTapSound(soundEnabled);
     triggerVibration(10, vibrationEnabled);
 
@@ -90,6 +94,7 @@ export const AnagramGame: React.FC<AnagramGameProps> = ({
   };
 
   const handleDeselectCard = (card: LetterCard) => {
+    if (isFinishedRef.current) return;
     playTapSound(soundEnabled);
     setSelectedCards((prev) => prev.filter((c) => c.id !== card.id));
     setAvailableCards((prev) =>
@@ -98,18 +103,22 @@ export const AnagramGame: React.FC<AnagramGameProps> = ({
   };
 
   const handleClear = () => {
+    if (isFinishedRef.current) return;
     playBeepSound(300, 0.05, soundEnabled);
     setSelectedCards([]);
     setAvailableCards((prev) => prev.map((c) => ({ ...c, isUsed: false })));
   };
 
   const handleCheck = () => {
+    if (isFinishedRef.current) return;
     const currentAnswer = selectedCards.map((c) => c.letter).join('');
 
     if (currentAnswer === targetWord) {
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
-      setWordsSolved((w) => w + 1);
+      const nextSolved = wordsSolvedRef.current + 1;
+      wordsSolvedRef.current = nextSolved;
+      setWordsSolved(nextSolved);
       setFeedback('DOĞRU CEVAP!');
 
       setTimeout(() => {
@@ -125,12 +134,15 @@ export const AnagramGame: React.FC<AnagramGameProps> = ({
   };
 
   const finishGame = () => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
+
     onFinishGame([
       {
         playerId: currentPlayer.id,
-        score: wordsSolved,
+        score: wordsSolvedRef.current,
         stats: {
-          'Çözülen Kelime': wordsSolved,
+          'Çözülen Kelime': wordsSolvedRef.current,
         },
       },
     ]);
