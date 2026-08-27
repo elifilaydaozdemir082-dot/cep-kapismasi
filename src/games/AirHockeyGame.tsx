@@ -50,6 +50,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const [freezeCooldown, setFreezeCooldown] = useState<number>(0);
 
   const isFinishedRef = useRef<boolean>(false);
+  const isGoalLockRef = useRef<boolean>(false); // Strict Goal Lock to prevent double-counting
   const containerRef = useRef<HTMLDivElement>(null);
   const p1PaddleRef = useRef<{ x: number; y: number }>({ x: 50, y: 80 });
 
@@ -295,7 +296,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   };
 
   const handleGoal = (scorer: 'P1' | 'P2') => {
-    if (isFinishedRef.current) return;
+    if (isGoalLockRef.current || isFinishedRef.current) return;
+    isGoalLockRef.current = true; // Lock goals for 1.2s to guarantee EXACT 1 point per goal event
+
     playFanfareSound(soundEnabled);
     triggerVibration([25, 35, 25], vibrationEnabled);
 
@@ -313,7 +316,10 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       if (next >= 5) finishGame();
     }
 
-    setTimeout(() => setGoalAnnouncement(null), 1500);
+    setTimeout(() => {
+      setGoalAnnouncement(null);
+      isGoalLockRef.current = false; // Unlock goals after puck resets
+    }, 1200);
   };
 
   const finishGame = () => {
