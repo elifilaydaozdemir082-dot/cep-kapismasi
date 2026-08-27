@@ -269,30 +269,21 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-md">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-            <Target className="w-5 h-5" aria-hidden="true" />
+          <div className="p-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <Target className="w-4 h-4" aria-hidden="true" />
           </div>
-          <span className="font-black text-sm tracking-wide text-white">15 SEVİYE DÜRBÜNLÜ OKÇULUK</span>
+          <span className="font-black text-xs tracking-wide text-white">OKÇULUK</span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-black">
-          {isFireArrow && (
-            <span className="text-amber-300 bg-rose-500/20 border border-rose-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse shadow-[0_0_10px_#EF4444]">
-              <Flame className="w-3.5 h-3.5 text-rose-500 fill-current" /> 🔥 ALEVLİ OK
-            </span>
-          )}
-
+        <div className="flex items-center gap-2 text-xs font-black">
           <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
-            📏 Mesafe: {targetDistance}m
+            📏 {targetDistance}m
           </span>
-          <span style={{ color: currentPlayer.color }} className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800">
-            👤 {currentPlayer.name}
+          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Zap className="w-3.5 h-3.5" /> {currentShot}/{totalShots}
           </span>
           <span className="text-amber-400 bg-amber-500/10 border border-amber-400/20 px-3 py-1 rounded-full flex items-center gap-1">
             <Trophy className="w-3.5 h-3.5" /> Skor: {playerScores[currentPlayer.id] || 0}
-          </span>
-          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5" /> Seviye: {currentShot} / {totalShots}
           </span>
         </div>
       </div>
