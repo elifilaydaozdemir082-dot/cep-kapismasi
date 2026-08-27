@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Target, Compass, Trophy, Zap, Eye } from 'lucide-react';
+import { Target, Trophy, Zap, Eye } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -10,20 +10,6 @@ interface ArcheryGameProps {
   soundEnabled: boolean;
   vibrationEnabled: boolean;
 }
-
-interface WindVector {
-  speed: number; // m/s
-  angle: number; // degrees
-  label: string;
-}
-
-const WIND_PRESETS: WindVector[] = [
-  { speed: 1.5, angle: 45, label: '↗️ 1.5 m/s Meltem' },
-  { speed: 2.8, angle: 180, label: '⬇️ 2.8 m/s Güney Rüzgârı' },
-  { speed: 3.6, angle: 270, label: '⬅️ 3.6 m/s Batı Fırtınası' },
-  { speed: 1.1, angle: 90, label: '➡️ 1.1 m/s Doğu Rüzgârı' },
-  { speed: 4.5, angle: 315, label: '↖️ 4.5 m/s Şiddetli Rüzgâr' },
-];
 
 // Progressive Shot Distances (Shot 1: 30m, Shot 2: 50m, Shot 3: 70m, Shot 4: 90m, Shot 5: 100m)
 const SHOT_DISTANCES = [30, 50, 70, 90, 100];
@@ -48,7 +34,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   // Target SVG Coordinates (viewBox 0 0 200 200, Center (100, 100))
   const [aimSvg, setAimSvg] = useState<{ x: number; y: number } | null>(null);
   const [isShooting, setIsShooting] = useState<boolean>(false);
-  const [wind, setWind] = useState<WindVector>(WIND_PRESETS[0]);
 
   // Scope & Arrow Flight State
   const [arrowSvg, setArrowSvg] = useState<{ x: number; y: number }>({ x: 100, y: 240 });
@@ -73,11 +58,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
   // Scale target visual size based on progressive distance (30m is 100%, 100m is 45%)
   const distanceTargetScale = Math.max(0.42, 1.15 - (targetDistance / 100) * 0.7);
-
-  useEffect(() => {
-    const randWind = WIND_PRESETS[Math.floor(Math.random() * WIND_PRESETS.length)];
-    setWind(randWind);
-  }, [currentShot, currentPlayerIdx]);
 
   // Pointer position normalized to SVG coordinates (0..200)
   const getSvgCoords = (e: React.PointerEvent) => {
@@ -110,19 +90,13 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       return;
     }
 
-    const rawSvg = { ...aimSvg };
+    const hitSvgX = aimSvg.x;
+    const hitSvgY = aimSvg.y;
+
     setAimSvg(null);
     setIsShooting(true);
 
-    // Wind Drift Factor increases with Target Distance!
-    const distanceMultiplier = 1 + (targetDistance / 30) * 0.6;
-    const rad = (wind.angle * Math.PI) / 180;
-    const driftX = Math.cos(rad) * wind.speed * 4.0 * distanceMultiplier;
-    const driftY = Math.sin(rad) * wind.speed * 4.0 * distanceMultiplier;
-
-    const hitSvgX = Math.min(195, Math.max(5, rawSvg.x + driftX));
-    const hitSvgY = Math.min(195, Math.max(5, rawSvg.y + driftY));
-
+    // Launch Direct Flight Animation (Zero Wind Drift!)
     launchArrowFlight(hitSvgX, hitSvgY);
   };
 
@@ -280,12 +254,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           background: 'linear-gradient(to bottom, #020617 0%, #064E3B 35%, #047857 70%, #065F46 100%)',
         }}
       >
-        {/* Wind Status HUD Badge */}
-        <div className="absolute top-4 left-4 z-40 bg-slate-950/90 border border-cyan-500/30 px-3.5 py-1.5 rounded-2xl flex items-center gap-2 text-xs font-black text-cyan-300 shadow-xl backdrop-blur">
-          <Compass className="w-4 h-4 text-cyan-400 animate-spin-slow" />
-          <span>{wind.label}</span>
-        </div>
-
         {/* Feedback Banner */}
         {feedback && (
           <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-950/95 border-2 border-amber-400 px-6 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
@@ -352,7 +320,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           </svg>
         </div>
 
-        {/* Interactive Telescopic Scope Overlay (Appears when dragging to aim) */}
+        {/* Interactive Telescopic Scope Overlay (Direct Precision Aiming) */}
         {aimSvg && (
           <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm animate-fade-in">
             {/* Scope Lens Frame */}
@@ -384,7 +352,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
                 </svg>
               </div>
 
-              {/* Scope Lens HUD Distance & Wind Info */}
+              {/* Scope Lens HUD Distance Info */}
               <div className="absolute bottom-3 inset-x-0 text-center z-40">
                 <span className="text-[10px] font-black bg-slate-950/90 border border-amber-400/40 text-amber-300 px-3 py-1 rounded-full shadow-lg">
                   🔭 DÜRBÜN BÜYÜTMESİ (MESAFE: {targetDistance}m)
@@ -397,7 +365,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-emerald-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-emerald-300 font-black flex items-center justify-center gap-1.5">
-            <Eye className="w-4 h-4 text-emerald-400" /> Dürbün merceğini açmak için hedefe basılı tutun ve rüzgarı hesaba katarak bırakın!
+            <Eye className="w-4 h-4 text-emerald-400" /> Dürbün merceğini açmak için hedefe basılı tutun ve bıraktığınız yere oku %100 isabet ettirin!
           </p>
         </div>
       </div>
