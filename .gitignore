@@ -12,6 +12,12 @@ dist/
 dist-ssr/
 *.local
 
+# Expo Mobile ignores
+apps/mobile/.expo/
+apps/mobile/node_modules/
+apps/mobile/dist/
+apps/mobile/.metro/
+
 # Environment variables
 .env
 .env.*
