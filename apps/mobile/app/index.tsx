@@ -1,11 +1,34 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, Users, Trophy, Settings, Zap, Play } from 'lucide-react-native';
+import { useGameSession } from '../context/GameSessionContext';
+import { mobileStorageService } from '../services/storage';
 
 export default function MainMenuScreen() {
   const router = useRouter();
+  const { setMode, resetSession } = useGameSession();
+
+  useEffect(() => {
+    // Controlled reset of temporary session state on home screen arrival
+    resetSession();
+  }, []);
+
+  const handleSinglePlayerPress = async () => {
+    setMode('single');
+    const savedPlayers = await mobileStorageService.getPlayers();
+    if (savedPlayers && savedPlayers.length > 0 && savedPlayers[0].name.trim() !== '') {
+      router.push('/games');
+    } else {
+      router.push('/players');
+    }
+  };
+
+  const handleMultiPlayerPress = () => {
+    setMode('multiplayer');
+    router.push('/players');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -23,7 +46,7 @@ export default function MainMenuScreen() {
         <View style={styles.menuList}>
           <TouchableOpacity
             style={[styles.menuButton, styles.primaryButton]}
-            onPress={() => router.push('/mode')}
+            onPress={handleSinglePlayerPress}
             activeOpacity={0.8}
           >
             <View style={styles.iconCirclePrimary}>
@@ -38,7 +61,7 @@ export default function MainMenuScreen() {
 
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => router.push('/players')}
+            onPress={handleMultiPlayerPress}
             activeOpacity={0.8}
           >
             <View style={styles.iconCircleSecondary}>

@@ -1,83 +1,207 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Modal,
+  ScrollView,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Zap, Car, Goal, Target, Brain, Bot, AlertCircle, Play } from 'lucide-react-native';
+import {
+  Zap,
+  Car,
+  Goal,
+  Target,
+  Crosshair,
+  Activity,
+  Swords,
+  MessageSquare,
+  HelpCircle,
+  Search,
+  Shuffle,
+  Ban,
+  Link,
+  BookOpen,
+  Gift,
+  Layers,
+  Compass,
+  Brain,
+  Film,
+  Flame,
+  ListOrdered,
+  Lock,
+  Play,
+  AlertCircle,
+  Users,
+} from 'lucide-react-native';
 import { HeaderNav } from '../components/HeaderNav';
+import { useGameSession } from '../context/GameSessionContext';
+import {
+  MOBILE_GAME_REGISTRY,
+  MOBILE_GAME_CATEGORIES,
+  MobileGameCategory,
+  MobileGameDefinition,
+} from '../registry/mobileGameRegistry';
 
-interface GameCardItem {
-  id: string;
-  title: string;
-  desc: string;
-  icon: any;
-  color: string;
-  isReady: boolean;
-}
-
-const GAME_CARDS: GameCardItem[] = [
-  {
-    id: 'target-hunt',
-    title: 'Hedef Avı',
-    desc: 'Ekranda beliren hedefleri yakala, seriyi koru!',
-    icon: Zap,
-    color: '#38BDF8',
-    isReady: true,
-  },
-  {
-    id: 'car-race',
-    title: 'Mini Araba Yarışı',
-    desc: 'Otoyolda engellerden kaç, yakın geçiş serisi yap!',
-    icon: Car,
-    color: '#F59E0B',
-    isReady: false,
-  },
-  {
-    id: 'penalty',
-    title: 'Penaltı Yarışması',
-    desc: 'Topa falso ver, kaleciyi avla!',
-    icon: Goal,
-    color: '#10B981',
-    isReady: false,
-  },
-  {
-    id: 'archery',
-    title: 'Okçuluk',
-    desc: 'Rüzgârı hesapla, tam 10 puanlık merkeze vur!',
-    icon: Target,
-    color: '#EF4444',
-    isReady: false,
-  },
-  {
-    id: 'memory',
-    title: 'Hafıza Rotası',
-    desc: 'Diziyi aklında tut ve tekrar et!',
-    icon: Brain,
-    color: '#8B5CF6',
-    isReady: false,
-  },
-  {
-    id: 'hangman',
-    title: 'Kelimeyi Kurtar',
-    desc: 'Gizli kelimeyi harf harf tahmin et!',
-    icon: Bot,
-    color: '#EC4899',
-    isReady: false,
-  },
-];
+// Icon Renderer for Mobile Lucide Icons
+const renderMobileIcon = (iconName: string, color: string) => {
+  const props = { size: 24, color };
+  switch (iconName) {
+    case 'Zap':
+      return <Zap {...props} />;
+    case 'Car':
+      return <Car {...props} />;
+    case 'Goal':
+      return <Goal {...props} />;
+    case 'Target':
+      return <Target {...props} />;
+    case 'Crosshair':
+      return <Crosshair {...props} />;
+    case 'Activity':
+      return <Activity {...props} />;
+    case 'Swords':
+      return <Swords {...props} />;
+    case 'MessageSquare':
+      return <MessageSquare {...props} />;
+    case 'HelpCircle':
+      return <HelpCircle {...props} />;
+    case 'Search':
+      return <Search {...props} />;
+    case 'Shuffle':
+      return <Shuffle {...props} />;
+    case 'Ban':
+      return <Ban {...props} />;
+    case 'Link':
+      return <Link {...props} />;
+    case 'BookOpen':
+      return <BookOpen {...props} />;
+    case 'Gift':
+      return <Gift {...props} />;
+    case 'Layers':
+      return <Layers {...props} />;
+    case 'Compass':
+      return <Compass {...props} />;
+    case 'Brain':
+      return <Brain {...props} />;
+    case 'Film':
+      return <Film {...props} />;
+    case 'Flame':
+      return <Flame {...props} />;
+    case 'ListOrdered':
+      return <ListOrdered {...props} />;
+    default:
+      return <Zap {...props} />;
+  }
+};
 
 export default function GamesScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams<{ mode?: string }>();
-  const [preparingModalVisible, setPreparingModalVisible] = useState<boolean>(false);
-  const [selectedGameTitle, setSelectedGameTitle] = useState<string>('');
+  const { session } = useGameSession();
 
-  const handleGameSelect = (game: GameCardItem) => {
-    if (game.isReady) {
-      router.push(`/games/target-hunt?mode=${mode || 'single'}`);
-    } else {
-      setSelectedGameTitle(game.title);
-      setPreparingModalVisible(true);
+  const [activeCategory, setActiveCategory] = useState<MobileGameCategory>('all');
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [modalTitle, setModalTitle] = useState<string>('');
+  const [modalMessage, setModalMessage] = useState<string>('');
+
+  useEffect(() => {
+    if (!session.mode) {
+      router.replace('/');
     }
+  }, [session.mode]);
+
+  const mode = session.mode || 'single';
+  const isSingle = mode === 'single';
+
+  // Filter games based on selected category tab
+  const filteredGames =
+    activeCategory === 'all'
+      ? MOBILE_GAME_REGISTRY
+      : MOBILE_GAME_REGISTRY.filter((g) => g.category === activeCategory);
+
+  const handleCardPress = (game: MobileGameDefinition) => {
+    const supportsCurrentMode = game.supportedModes.includes(mode);
+
+    if (!supportsCurrentMode) {
+      setModalTitle(game.title);
+      setModalMessage(
+        'Bu oyun yalnızca çok oyunculu modda oynanabilir. Ana sayfadan "Arkadaşlarla Oyna" modunu seçebilirsiniz.'
+      );
+      setModalVisible(true);
+      return;
+    }
+
+    if (game.status === 'playable' && game.route) {
+      router.push(`${game.route}?mode=${mode}` as any);
+    } else {
+      setModalTitle(game.title);
+      setModalMessage('Bu oyun Expo sürümüne henüz taşınmadı.\nWeb sürümünde oynamaya devam edebilirsin.');
+      setModalVisible(true);
+    }
+  };
+
+  const renderGameCard = ({ item: game }: { item: MobileGameDefinition }) => {
+    const supportsCurrentMode = game.supportedModes.includes(mode);
+    const isPlayable = game.status === 'playable' && supportsCurrentMode;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.card,
+          isPlayable && styles.playableCard,
+          !supportsCurrentMode && styles.incompatibleCard,
+        ]}
+        onPress={() => handleCardPress(game)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.iconBox,
+              { backgroundColor: `${game.color}20`, borderColor: game.color },
+            ]}
+          >
+            {renderMobileIcon(game.iconName, game.color)}
+          </View>
+
+          {isPlayable ? (
+            <View style={styles.readyBadge}>
+              <Text style={styles.readyBadgeText}>OYNANABİLİR</Text>
+            </View>
+          ) : !supportsCurrentMode ? (
+            <View style={styles.multiOnlyBadge}>
+              <Lock size={10} color="#F59E0B" />
+              <Text style={styles.multiOnlyBadgeText}>Sadece Çok Oyunculu</Text>
+            </View>
+          ) : (
+            <View style={styles.devBadge}>
+              <Lock size={10} color="#94A3B8" />
+              <Text style={styles.devBadgeText}>Mobil Sürüme Hazırlanıyor</Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.cardTitle}>{game.title}</Text>
+        <Text style={styles.cardDesc} numberOfLines={2}>
+          {game.description}
+        </Text>
+
+        {isPlayable ? (
+          <View style={styles.playRow}>
+            <Play size={14} color="#38BDF8" fill="#38BDF8" />
+            <Text style={styles.playText}>Hemen Oyna</Text>
+          </View>
+        ) : (
+          <View style={styles.disabledRow}>
+            <Text style={styles.disabledText}>
+              {!supportsCurrentMode ? 'Mod Uyumsuz' : 'Hazırlanıyor'}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -85,64 +209,86 @@ export default function GamesScreen() {
       <View style={styles.content}>
         <HeaderNav title="Oyun Seçimi" />
 
-        <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
-          <Text style={styles.sectionTitle}>
-            {mode === 'multi' ? 'Çok Oyunculu Mod' : 'Tek Oyunculu Mod'}
-          </Text>
-          <Text style={styles.sectionSubtitle}>
-            Oynamak istediğiniz oyunu seçin:
-          </Text>
-
-          <View style={styles.grid}>
-            {GAME_CARDS.map((game) => {
-              const IconComp = game.icon;
-              return (
-                <TouchableOpacity
-                  key={game.id}
-                  style={[styles.card, game.isReady && styles.readyCard]}
-                  onPress={() => handleGameSelect(game)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.cardHeader}>
-                    <View style={[styles.iconBox, { backgroundColor: `${game.color}20`, borderColor: game.color }]}>
-                      <IconComp size={24} color={game.color} />
-                    </View>
-                    {!game.isReady && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>YAKINDA</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <Text style={styles.cardTitle}>{game.title}</Text>
-                  <Text style={styles.cardDesc}>{game.desc}</Text>
-
-                  {game.isReady && (
-                    <View style={styles.playRow}>
-                      <Play size={14} color="#38BDF8" fill="#38BDF8" />
-                      <Text style={styles.playText}>Hemen Oyna</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+        {/* Top Active Mode Status Bar */}
+        <View style={styles.modeBar}>
+          <View style={styles.modeInfoGroup}>
+            <View
+              style={[
+                styles.modeDot,
+                { backgroundColor: isSingle ? '#38BDF8' : '#F59E0B' },
+              ]}
+            />
+            <Text style={styles.modeTitleText}>
+              {isSingle
+                ? 'Tek Oyunculu Mod'
+                : `Arkadaşlarla Oyna · ${session.players.length} Oyuncu`}
+            </Text>
           </View>
-        </ScrollView>
 
-        {/* Preparing Game Modal */}
-        <Modal visible={preparingModalVisible} transparent animationType="fade">
+          {!isSingle && (
+            <TouchableOpacity
+              style={styles.editPlayersButton}
+              onPress={() => router.push('/players')}
+              activeOpacity={0.8}
+            >
+              <Users size={14} color="#38BDF8" />
+              <Text style={styles.editPlayersText}>Oyuncuları Düzenle</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Horizontal Category Filter Tabs */}
+        <View style={styles.tabsWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabsContainer}
+          >
+            {MOBILE_GAME_CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.tabButton,
+                  activeCategory === cat.id && styles.activeTabButton,
+                ]}
+                onPress={() => setActiveCategory(cat.id)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeCategory === cat.id && styles.activeTabText,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* 22 Games List */}
+        <FlatList
+          data={filteredGames}
+          renderItem={renderGameCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Info Modal for Unfinished or Incompatible Games */}
+        <Modal visible={modalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalIconBox}>
                 <AlertCircle size={32} color="#F59E0B" />
               </View>
-              <Text style={styles.modalTitle}>{selectedGameTitle}</Text>
-              <Text style={styles.modalMessage}>
-                Bu oyun mobil sürüme hazırlanıyor.
-              </Text>
+              <Text style={styles.modalTitle}>{modalTitle}</Text>
+              <Text style={styles.modalMessage}>{modalMessage}</Text>
               <TouchableOpacity
                 style={styles.modalButton}
-                onPress={() => setPreparingModalVisible(false)}
+                onPress={() => setModalVisible(false)}
+                activeOpacity={0.8}
               >
                 <Text style={styles.modalButtonText}>Tamam</Text>
               </TouchableOpacity>
@@ -163,63 +309,153 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  scrollContent: {
-    paddingBottom: 24,
+  modeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0F172A',
+    borderColor: '#1E293B',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 8,
+    marginBottom: 12,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '900',
+  modeInfoGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  modeTitleText: {
     color: '#F8FAFC',
-    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '900',
   },
-  sectionSubtitle: {
-    fontSize: 12,
-    fontWeight: '600',
+  editPlayersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#020617',
+    borderColor: '#38BDF8',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  editPlayersText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  tabsWrapper: {
+    marginBottom: 12,
+  },
+  tabsContainer: {
+    gap: 8,
+  },
+  tabButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    borderColor: '#1E293B',
+    borderWidth: 1,
+  },
+  activeTabButton: {
+    backgroundColor: '#38BDF8',
+    borderColor: '#7DD3FC',
+  },
+  tabText: {
     color: '#94A3B8',
-    marginTop: 4,
-    marginBottom: 16,
+    fontSize: 12,
+    fontWeight: '800',
   },
-  grid: {
-    gap: 14,
+  activeTabText: {
+    color: '#020617',
+    fontWeight: '900',
+  },
+  listContainer: {
+    gap: 12,
+    paddingBottom: 24,
   },
   card: {
     backgroundColor: '#0F172A',
     borderColor: '#1E293B',
     borderWidth: 1,
     borderRadius: 22,
-    padding: 18,
+    padding: 16,
   },
-  readyCard: {
+  playableCard: {
     borderColor: '#38BDF8',
-    backgroundColor: '#0F172A',
+  },
+  incompatibleCard: {
+    opacity: 0.6,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   iconBox: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badge: {
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+  readyBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-  badgeText: {
+  readyBadgeText: {
+    color: '#38BDF8',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  devBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  devBadgeText: {
     color: '#94A3B8',
-    fontSize: 10,
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  multiOnlyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  multiOnlyBadgeText: {
+    color: '#F59E0B',
+    fontSize: 9,
     fontWeight: '900',
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
     color: '#F8FAFC',
     marginBottom: 4,
@@ -234,12 +470,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 12,
+    marginTop: 10,
   },
   playText: {
     color: '#38BDF8',
     fontSize: 12,
     fontWeight: '900',
+  },
+  disabledRow: {
+    marginTop: 10,
+  },
+  disabledText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '800',
   },
   modalOverlay: {
     flex: 1,
@@ -274,12 +518,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#F8FAFC',
     marginBottom: 6,
+    textAlign: 'center',
   },
   modalMessage: {
     fontSize: 13,
     fontWeight: '600',
     color: '#94A3B8',
     textAlign: 'center',
+    lineHeight: 18,
     marginBottom: 20,
   },
   modalButton: {

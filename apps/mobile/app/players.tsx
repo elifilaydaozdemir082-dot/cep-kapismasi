@@ -1,62 +1,163 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Users, Check, Play } from 'lucide-react-native';
+import { Users, User, Check, Play } from 'lucide-react-native';
 import { HeaderNav } from '../components/HeaderNav';
-import { mobileStorageService, MobilePlayer } from '../services/storage';
+import { useGameSession } from '../context/GameSessionContext';
+import { MobilePlayer } from '../services/storage';
 
-const COLOR_OPTIONS = ['#06B6D4', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+const COLOR_PALETTE = ['#38BDF8', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
 
 export default function PlayersScreen() {
   const router = useRouter();
-  const [players, setPlayers] = useState<MobilePlayer[]>([
-    { id: 'p1', name: 'Oyuncu 1', color: '#06B6D4' },
-    { id: 'p2', name: 'Oyuncu 2', color: '#EF4444' },
-  ]);
+  const { session, setPlayers } = useGameSession();
+
+  const mode = session.mode || 'single';
+  const isSingle = mode === 'single';
+
+  const [playerCount, setPlayerCount] = useState<number>(
+    isSingle ? 1 : Math.max(2, session.players.length || 2)
+  );
+
+  const [playersList, setPlayersList] = useState<MobilePlayer[]>([]);
 
   useEffect(() => {
-    loadPlayers();
-  }, []);
+    if (!session.mode) {
+      // Safe fallback redirect if opened without session
+      router.replace('/');
+      return;
+    }
 
-  const loadPlayers = async () => {
-    const loaded = await mobileStorageService.getPlayers();
-    setPlayers(loaded);
+    if (isSingle) {
+      const p1 = session.players[0] || { id: 'p1', name: 'Oyuncu 1', color: COLOR_PALETTE[0] };
+      setPlayersList([{ ...p1, id: 'p1' }]);
+    } else {
+      const count = Math.max(2, Math.min(4, session.players.length || 2));
+      setPlayerCount(count);
+
+      const list: MobilePlayer[] = [];
+      for (let i = 0; i < count; i++) {
+        if (session.players[i]) {
+          list.push({ ...session.players[i] });
+        } else {
+          list.push({
+            id: `p${i + 1}`,
+            name: `${i + 1}. Oyuncu`,
+            color: COLOR_PALETTE[i % COLOR_PALETTE.length],
+          });
+        }
+      }
+      setPlayersList(list);
+    }
+  }, [session.mode]);
+
+  const handlePlayerCountChange = (count: number) => {
+    setPlayerCount(count);
+    setPlayersList((prev) => {
+      const newList: MobilePlayer[] = [];
+      for (let i = 0; i < count; i++) {
+        if (prev[i]) {
+          newList.push(prev[i]);
+        } else {
+          newList.push({
+            id: `p${i + 1}`,
+            name: `${i + 1}. Oyuncu`,
+            color: COLOR_PALETTE[i % COLOR_PALETTE.length],
+          });
+        }
+      }
+      return newList;
+    });
   };
 
   const updatePlayerName = (id: string, name: string) => {
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name: name } : p))
+    setPlayersList((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, name } : p))
     );
   };
 
   const updatePlayerColor = (id: string, color: string) => {
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, color: color } : p))
+    setPlayersList((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, color } : p))
     );
   };
 
   const handleStartGame = async () => {
-    await mobileStorageService.savePlayers(players);
-    router.push('/games?mode=multi');
+    // Validate player names
+    for (let i = 0; i < playersList.length; i++) {
+      if (!playersList[i].name.trim()) {
+        Alert.alert('Eksik Bilgi', `Lütfen ${i + 1}. oyuncu adını girin.`);
+        return;
+      }
+    }
+
+    if (!isSingle) {
+      // Validate unique names in multiplayer
+      const names = playersList.map((p) => p.name.trim().toLowerCase());
+      const uniqueNames = new Set(names);
+      if (uniqueNames.size < names.length) {
+        Alert.alert('Çift İsim Uyarısı', 'Her oyuncunun ismi farklı olmalıdır.');
+        return;
+      }
+    }
+
+    await setPlayers(playersList);
+    router.push('/games');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <HeaderNav title="Oyuncu Ayarları" />
+        <HeaderNav title={isSingle ? 'Tek Oyuncu Ayarı' : 'Çoklu Oyuncu Ayarı'} />
 
         <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
           <View style={styles.card}>
             <View style={styles.headerRow}>
-              <Users size={22} color="#38BDF8" />
-              <Text style={styles.cardTitle}>Oyuncuları Düzenleyin</Text>
+              {isSingle ? (
+                <User size={24} color="#38BDF8" />
+              ) : (
+                <Users size={24} color="#38BDF8" />
+              )}
+              <Text style={styles.cardTitle}>
+                {isSingle ? 'Oyuncu Adı ve Rengi' : 'Oyuncuları Düzenleyin'}
+              </Text>
             </View>
 
-            {players.map((p, idx) => (
+            {/* Player Count Selection (Multiplayer Only) */}
+            {!isSingle && (
+              <View style={styles.countSelectorBox}>
+                <Text style={styles.countSelectorLabel}>Oyuncu Sayısı Seçin:</Text>
+                <View style={styles.countButtonsRow}>
+                  {[2, 3, 4].map((cnt) => (
+                    <TouchableOpacity
+                      key={cnt}
+                      style={[
+                        styles.countButton,
+                        playerCount === cnt && styles.countButtonActive,
+                      ]}
+                      onPress={() => handlePlayerCountChange(cnt)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.countButtonText,
+                          playerCount === cnt && styles.countButtonTextActive,
+                        ]}
+                      >
+                        {cnt} Oyuncu
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Players Inputs & Color Selectors */}
+            {playersList.map((p, idx) => (
               <View key={p.id} style={styles.playerCard}>
                 <Text style={[styles.playerLabel, { color: p.color }]}>
-                  {idx + 1}. Oyuncu
+                  {isSingle ? 'Oyuncu Profiliniz' : `${idx + 1}. Oyuncu`}
                 </Text>
 
                 <TextInput
@@ -69,7 +170,7 @@ export default function PlayersScreen() {
                 />
 
                 <View style={styles.colorRow}>
-                  {COLOR_OPTIONS.map((c) => (
+                  {COLOR_PALETTE.map((c) => (
                     <TouchableOpacity
                       key={c}
                       style={[
@@ -86,7 +187,7 @@ export default function PlayersScreen() {
               </View>
             ))}
 
-            <TouchableOpacity style={styles.startButton} onPress={handleStartGame}>
+            <TouchableOpacity style={styles.startButton} onPress={handleStartGame} activeOpacity={0.8}>
               <Play size={20} color="#020617" fill="#020617" />
               <Text style={styles.startButtonText}>Oyun Seçimine Geç</Text>
             </TouchableOpacity>
@@ -127,6 +228,46 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     color: '#F8FAFC',
+  },
+  countSelectorBox: {
+    backgroundColor: '#020617',
+    borderColor: '#1E293B',
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+  },
+  countSelectorLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94A3B8',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  countButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  countButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+    borderColor: '#334155',
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  countButtonActive: {
+    backgroundColor: '#38BDF8',
+    borderColor: '#7DD3FC',
+  },
+  countButtonText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#94A3B8',
+  },
+  countButtonTextActive: {
+    color: '#020617',
   },
   playerCard: {
     backgroundColor: '#020617',
