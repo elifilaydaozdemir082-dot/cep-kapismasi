@@ -31,7 +31,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     x: 50,
     y: 50,
     vx: 0.3,
-    vy: 0.5,
+    vy: 0.6,
   });
 
   const [impactSpark, setImpactSpark] = useState<{ x: number; y: number } | null>(null);
@@ -40,12 +40,11 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const p1PaddleRef = useRef<{ x: number; y: number }>({ x: 50, y: 82 });
 
-  // Update p1 paddle ref
   useEffect(() => {
     p1PaddleRef.current = p1Paddle;
   }, [p1Paddle]);
 
-  // 60FPS Game Physics Loop with Exact Pixel Collision Math
+  // 60FPS Game Physics Loop with Exact Circle Positional Correction
   useEffect(() => {
     if (isFinishedRef.current) return;
 
@@ -53,7 +52,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     let lastTime = performance.now();
 
     const loop = (time: number) => {
-      const delta = Math.min(0.05, (time - lastTime) / 1000);
+      const delta = Math.min(0.04, (time - lastTime) / 1000);
       lastTime = time;
 
       const rect = containerRef.current?.getBoundingClientRect();
@@ -63,16 +62,16 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       // 1. Intelligent AI Bot Logic (Single Player Mode - Yellow Bot)
       if (mode === 'single') {
         setP2Paddle((prev) => {
-          // AI Bot tracks puck when in top half (y < 52%)
+          // AI Bot tracks puck aggressively when in top half (y < 52%)
           const targetX = puck.x;
-          const targetY = puck.y < 52 ? Math.min(40, Math.max(14, puck.y - 4)) : 18;
+          const targetY = puck.y < 52 ? Math.min(38, Math.max(12, puck.y - 3)) : 18;
 
           const dx = targetX - prev.x;
           const dy = targetY - prev.y;
 
           // Smooth tracking speed
-          const speedX = 0.28;
-          const speedY = 0.25;
+          const speedX = 0.32;
+          const speedY = 0.28;
 
           const newX = Math.min(Math.max(prev.x + dx * speedX, 12), 88);
           const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 42);
@@ -81,17 +80,21 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         });
       }
 
-      // 2. Puck Motion & Wall / Goal / Paddle Physics
+      // 2. Puck Motion & Positional Correction Physics
       setPuck((prev) => {
-        let newX = prev.x + prev.vx * delta * 60;
-        let newY = prev.y + prev.vy * delta * 60;
+        let newX = prev.x + prev.vx * delta * 70;
+        let newY = prev.y + prev.vy * delta * 70;
         let vx = prev.vx;
         let vy = prev.vy;
 
         // Bounce off Left / Right Side Walls
-        if (newX <= 5 || newX >= 95) {
-          vx = -vx * 0.95;
-          newX = Math.min(Math.max(newX, 5), 95);
+        if (newX <= 5) {
+          vx = Math.abs(vx) * 0.95;
+          newX = 5;
+          playBeepSound(300, 0.05, soundEnabled);
+        } else if (newX >= 95) {
+          vx = -Math.abs(vx) * 0.95;
+          newX = 95;
           playBeepSound(300, 0.05, soundEnabled);
         }
 
@@ -100,9 +103,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           if (newX >= 30 && newX <= 70) {
             // Player 1 Goal!
             handleGoal('P1');
-            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.6, vy: 0.5 };
+            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.6, vy: 0.6 };
           } else {
-            vy = -vy * 0.95;
+            vy = Math.abs(vy) * 0.95;
             newY = 3;
             playBeepSound(300, 0.05, soundEnabled);
           }
@@ -110,9 +113,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           if (newX >= 30 && newX <= 70) {
             // Player 2 Goal!
             handleGoal('P2');
-            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.6, vy: -0.5 };
+            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.6, vy: -0.6 };
           } else {
-            vy = -vy * 0.95;
+            vy = -Math.abs(vy) * 0.95;
             newY = 97;
             playBeepSound(300, 0.05, soundEnabled);
           }
@@ -122,8 +125,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         const puckPxX = (newX / 100) * arenaW;
         const puckPxY = (newY / 100) * arenaH;
 
-        const paddleRadiusPx = 28; // Paddle radius
-        const puckRadiusPx = 16;   // Puck radius
+        const paddleRadiusPx = 28;
+        const puckRadiusPx = 16;
         const combinedRadius = paddleRadiusPx + puckRadiusPx;
 
         // Paddle Collision - P1 Paddle (Cyan / Bottom)
@@ -131,12 +134,19 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         const p1PxY = (p1PaddleRef.current.y / 100) * arenaH;
         const distP1Px = Math.hypot(puckPxX - p1PxX, puckPxY - p1PxY);
 
-        if (distP1Px <= combinedRadius) {
-          // Exact edge contact collision response: Propel puck strongly UPWARDS into P2 half!
+        if (distP1Px <= combinedRadius && distP1Px > 0) {
+          // Normal collision vector
           const normalX = (puckPxX - p1PxX) / distP1Px;
+          const normalY = (puckPxY - p1PxY) / distP1Px;
 
-          vy = -Math.max(0.6, Math.abs(vy) * 1.15);
-          vx = normalX * 0.7;
+          // Positional Correction: Push puck OUT of paddle boundary immediately
+          const overlap = combinedRadius - distP1Px + 2;
+          newX += (normalX * overlap / arenaW) * 100;
+          newY += (normalY * overlap / arenaH) * 100;
+
+          // Velocity Response: Rocket puck UPWARDS into P2 half!
+          vy = -Math.max(0.7, Math.abs(vy) * 1.2);
+          vx = normalX * 0.8;
 
           setImpactSpark({ x: newX, y: newY });
           setTimeout(() => setImpactSpark(null), 250);
@@ -150,12 +160,19 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         const p2PxY = (p2Paddle.y / 100) * arenaH;
         const distP2Px = Math.hypot(puckPxX - p2PxX, puckPxY - p2PxY);
 
-        if (distP2Px <= combinedRadius) {
-          // Exact edge contact collision response: Propel puck DOWNWARDS into P1 half!
+        if (distP2Px <= combinedRadius && distP2Px > 0) {
+          // Normal collision vector
           const normalX = (puckPxX - p2PxX) / distP2Px;
+          const normalY = (puckPxY - p2PxY) / distP2Px;
 
-          vy = Math.max(0.6, Math.abs(vy) * 1.15);
-          vx = normalX * 0.7;
+          // Positional Correction: Push puck OUT of bot paddle boundary immediately
+          const overlap = combinedRadius - distP2Px + 2;
+          newX += (normalX * overlap / arenaW) * 100;
+          newY += (normalY * overlap / arenaH) * 100;
+
+          // Velocity Response: Rocket puck DOWNWARDS into P1 half!
+          vy = Math.max(0.7, Math.abs(vy) * 1.2);
+          vx = normalX * 0.8;
 
           setImpactSpark({ x: newX, y: newY });
           setTimeout(() => setImpactSpark(null), 250);
