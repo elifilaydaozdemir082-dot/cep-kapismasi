@@ -374,7 +374,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
             transform: `rotate(${towerTilt}deg)`,
             transformOrigin: 'bottom center',
           }}
-          className="relative w-full flex flex-col justify-end transition-transform duration-300 z-20"
+          className="relative w-full flex flex-col-reverse justify-start transition-transform duration-300 z-20"
         >
           {floors.map((floor, idx) => (
             <div
