@@ -39,8 +39,14 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
   const [currentShot, setCurrentShot] = useState<number>(1);
   const totalShots = 5;
 
-  // Controlled State Machine
-  const [shotPhase, setShotPhase] = useState<ShotPhase>('ready');
+  // Controlled State Machine with Ref backing to prevent stale closure freezes
+  const [_shotPhase, setShotPhase] = useState<ShotPhase>('ready');
+  const shotPhaseRef = useRef<ShotPhase>('ready');
+
+  const updateShotPhase = (phase: ShotPhase) => {
+    shotPhaseRef.current = phase;
+    setShotPhase(phase);
+  };
 
   // Stats State & Ref
   const [penaltyStats, setPenaltyStats] = useState<PenaltyStats>(INITIAL_PENALTY_STATS);
@@ -49,10 +55,10 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
   // Ball & Keeper Visual Positions
   const [ballPos, setBallPos] = useState<Point2D>({ x: 50, y: 80 }); // % coordinates
   const [keeperPos, setKeeperPos] = useState<Point2D>({ x: 50, y: 38 });
-  const [keeperZone, setKeeperZone] = useState<KeeperDiveZone>('center');
+  const [_keeperZone, setKeeperZone] = useState<KeeperDiveZone>('center');
 
   // Shot Visual Effects
-  const [latestOutcome, setLatestOutcome] = useState<ShotOutcome | null>(null);
+  const [_latestOutcome, setLatestOutcome] = useState<ShotOutcome | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [netRipple, setNetRipple] = useState<boolean>(false);
   const [postSparkle, setPostSparkle] = useState<boolean>(false);
@@ -71,26 +77,27 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
     penaltyStatsRef.current = INITIAL_PENALTY_STATS;
     setPenaltyStats(INITIAL_PENALTY_STATS);
     previousShotsRef.current = [];
+    updateShotPhase('ready');
   }, [players]);
 
   // Pointer Event Handlers for Aiming & Dragging
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (shotPhase !== 'ready' || isFinishedRef.current) return;
-    setShotPhase('aiming');
+    if (shotPhaseRef.current !== 'ready' || isFinishedRef.current) return;
+    updateShotPhase('aiming');
     setDragStart({ x: e.clientX, y: e.clientY });
     setDragCurrent({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (shotPhase !== 'aiming' || !dragStart || isFinishedRef.current) return;
+    if (shotPhaseRef.current !== 'aiming' || !dragStart || isFinishedRef.current) return;
     setDragCurrent({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerUp = () => {
-    if (shotPhase !== 'aiming' || !dragStart || !dragCurrent || isFinishedRef.current) {
+    if (shotPhaseRef.current !== 'aiming' || !dragStart || !dragCurrent || isFinishedRef.current) {
       setDragStart(null);
       setDragCurrent(null);
-      if (shotPhase === 'aiming') setShotPhase('ready');
+      if (shotPhaseRef.current === 'aiming') updateShotPhase('ready');
       return;
     }
 
@@ -102,12 +109,12 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
 
     // Minimum upward drag required to shoot
     if (dy < 25) {
-      setShotPhase('ready');
+      updateShotPhase('ready');
       return;
     }
 
-    // Single trigger: Transition to 'shooting'
-    setShotPhase('shooting');
+    // Transition to 'shooting' using ref-synced updater
+    updateShotPhase('shooting');
 
     // Calculate Target Coordinates from Drag Vector
     const powerScale = Math.min(1.4, Math.max(0.6, Math.sqrt(dx * dx + dy * dy) / 100));
@@ -125,7 +132,7 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
     setKeeperPos(keeperTargetPos);
     setBallPos(ballTarget);
 
-    // Execute Shot Resolution after motion delay (500ms)
+    // Execute Shot Resolution after motion delay (550ms)
     setTimeout(() => {
       resolveShot(ballTarget, keeperTargetPos);
     }, 550);
@@ -133,8 +140,8 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
 
   // Single Source of Truth Resolution
   const resolveShot = (ballTarget: Point2D, keeperTargetPos: Point2D) => {
-    if (isFinishedRef.current || shotPhase !== 'shooting') return;
-    setShotPhase('resolved');
+    if (isFinishedRef.current || shotPhaseRef.current !== 'shooting') return;
+    updateShotPhase('resolved');
 
     // Calculate outcome driven strictly by trajectory & goalkeeper collision
     const outcome = calculateShotOutcome(ballTarget, keeperTargetPos, difficulty);
@@ -157,32 +164,30 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
 
-      let msg = 'GOL!';
-      if (isTopCorner) msg = 'ÜST KÖŞEYE HARİKA GOL! (+175 Puan)';
-      else if (isCorner) msg = 'KÖŞEYE MÜKEMMEL GOL! (+150 Puan)';
+      let msg = '⚽ GOL!';
+      if (isTopCorner) msg = '🔥 90\'A MÜKEMMEL GOL! (+175 Puan)';
+      else if (isCorner) msg = '🎯 KÖŞEYE HARİKA GOL! (+150 Puan)';
       setFeedbackMessage(msg);
     } else if (outcome === 'saved') {
-      // Deflect ball slightly backward on save
       setBallPos((prev) => ({ x: prev.x, y: prev.y + 12 }));
       playBeepSound(200, 0.3, soundEnabled);
       triggerVibration(40, vibrationEnabled);
-      setFeedbackMessage('KALECİ KURTARDI!');
+      setFeedbackMessage('🧤 KALECİ KURTARDI!');
     } else if (outcome === 'post') {
       setPostSparkle(true);
       setBallPos((prev) => ({ x: prev.x > 50 ? prev.x + 8 : prev.x - 8, y: prev.y + 10 }));
       playBeepSound(350, 0.3, soundEnabled);
       triggerVibration(50, vibrationEnabled);
-      setFeedbackMessage('DİREKTEN DÖNDÜ!');
+      setFeedbackMessage('💥 DİREKTEN DÖNDÜ!');
     } else {
-      // missed
       playBeepSound(150, 0.3, soundEnabled);
       triggerVibration(30, vibrationEnabled);
-      setFeedbackMessage('ŞUT DIŞARI GİTTİ!');
+      setFeedbackMessage('❌ ŞUT DIŞARI GİTTİ!');
     }
 
     // Transition to next shot or finish after 1500ms
     setTimeout(() => {
-      setShotPhase('next-shot');
+      updateShotPhase('next-shot');
       setFeedbackMessage(null);
       setNetRipple(false);
       setPostSparkle(false);
@@ -195,21 +200,21 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
       if (mode === 'single') {
         if (updatedStats.shotsTaken < totalShots) {
           setCurrentShot(updatedStats.shotsTaken + 1);
-          setShotPhase('ready');
+          updateShotPhase('ready');
         } else {
-          setShotPhase('finished');
+          updateShotPhase('finished');
           finishGame();
         }
       } else {
         if (currentPlayerIdx < players.length - 1) {
           setCurrentPlayerIdx((prev) => prev + 1);
-          setShotPhase('ready');
+          updateShotPhase('ready');
         } else if (currentShot < totalShots) {
           setCurrentPlayerIdx(0);
           setCurrentShot((s) => s + 1);
-          setShotPhase('ready');
+          updateShotPhase('ready');
         } else {
-          setShotPhase('finished');
+          updateShotPhase('finished');
           finishGame();
         }
       }
@@ -228,11 +233,9 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
       score: stats.score,
       stats: {
         'Gol Sayısı': `${stats.goals} / ${totalShots}`,
-        'Kurtarış': stats.saves,
-        'Direk': stats.posts,
-        'Kaçan Şut': stats.misses,
-        'En Uzun Seri': stats.bestStreak,
         'İsabet Oranı': `%${accuracy}`,
+        'En Yüksek Seri': `${stats.bestStreak} Gol`,
+        'Toplam Puan': stats.score,
       },
     }));
 
@@ -245,82 +248,78 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-md">
         <div className="flex items-center gap-2">
           <Goal className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-          <span className="font-extrabold text-xs text-white">Penaltı Yarışması</span>
+          <span className="font-extrabold text-sm text-white">Penaltı Yarışması</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs font-black">
           <span style={{ color: currentPlayer.color }}>{currentPlayer.name}</span>
-          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-[11px]">
+          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
             🏆 {penaltyStats.score} Puan (Gol: {penaltyStats.goals})
           </span>
-          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full text-[11px]">
+          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full">
             Şut: {currentShot} / {totalShots}
           </span>
         </div>
       </div>
 
-      {/* Main Pitch & Goal Arena */}
+      {/* Main Pitch Arena */}
       <div
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="flex-1 relative bg-gradient-to-b from-slate-900 via-emerald-950/50 to-slate-950 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4 cursor-crosshair"
+        className="flex-1 relative bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/40 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4"
       >
         {/* Feedback Banner */}
         {feedbackMessage && (
-          <div
-            className={`absolute top-16 left-1/2 -translate-x-1/2 z-40 px-5 py-2 rounded-full font-black text-xs shadow-2xl animate-scale-up border ${
-              latestOutcome === 'goal'
-                ? 'bg-emerald-950/95 border-emerald-400 text-emerald-300 ring-4 ring-emerald-500/20'
-                : latestOutcome === 'saved'
-                ? 'bg-slate-950/95 border-amber-400 text-amber-300'
-                : latestOutcome === 'post'
-                ? 'bg-purple-950/95 border-purple-400 text-purple-300'
-                : 'bg-rose-950/95 border-rose-500 text-rose-300'
-            }`}
-          >
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-emerald-400 px-5 py-2.5 rounded-full font-black text-xs text-emerald-300 shadow-2xl animate-scale-up">
             {feedbackMessage}
           </div>
         )}
 
-        {/* Goal Frame & Net Area */}
-        <div
-          className={`relative w-4/5 mx-auto h-40 border-4 border-white rounded-t-xl bg-slate-900/80 shadow-2xl flex items-center justify-center transition-all ${
-            netRipple ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.5)]' : ''
-          }`}
-        >
-          {/* Net Crosshatch Grid */}
-          <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:8px_8px] opacity-40 pointer-events-none" />
+        {/* Goal Post Frame SVG & Net */}
+        <div className="relative w-full h-48 flex justify-center items-start pt-2">
+          <svg
+            width="320"
+            height="160"
+            viewBox="0 0 320 160"
+            className={`drop-shadow-2xl ${netRipple ? 'animate-pulse' : ''}`}
+          >
+            {/* Goal Net Grid Background */}
+            <pattern id="netPattern" width="10" height="10" patternUnits="userSpaceOnUse">
+              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#F8FAFC" strokeWidth="0.8" opacity="0.4" />
+            </pattern>
+            <rect x="25" y="15" width="270" height="130" fill="url(#netPattern)" />
 
-          {/* Post Sparkle Glow */}
-          {postSparkle && (
-            <div className="absolute -inset-1 border-4 border-amber-400 animate-ping rounded-t-xl pointer-events-none" />
-          )}
+            {/* Posts & Crossbar */}
+            <rect x="15" y="10" width="12" height="145" fill="#F8FAFC" rx="4" />
+            <rect x="293" y="10" width="12" height="145" fill="#F8FAFC" rx="4" />
+            <rect x="15" y="10" width="290" height="12" fill="#F8FAFC" rx="4" />
 
-          {/* Goalkeeper Container */}
+            {/* Sparkle on Post Hit */}
+            {postSparkle && (
+              <circle cx="20" cy="15" r="15" fill="#F59E0B" opacity="0.8" className="animate-ping" />
+            )}
+          </svg>
+
+          {/* Goalkeeper SVG */}
           <div
             style={{
               left: `${keeperPos.x}%`,
               top: `${keeperPos.y}%`,
             }}
-            className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 z-20"
+            className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-500 z-20"
           >
-            <div
-              className={`p-2 rounded-2xl bg-amber-400 text-slate-950 shadow-2xl border-2 border-white flex items-center justify-center transition-transform ${
-                keeperZone === 'left' || keeperZone === 'top-left'
-                  ? '-rotate-45 -translate-x-2'
-                  : keeperZone === 'right' || keeperZone === 'top-right'
-                  ? 'rotate-45 translate-x-2'
-                  : ''
-              }`}
-            >
-              <Shield className="w-8 h-8 stroke-[2.5]" aria-hidden="true" />
+            <div className="w-14 h-14 bg-amber-400 border-2 border-white rounded-full flex items-center justify-center shadow-xl">
+              <Shield className="w-8 h-8 text-slate-950 stroke-[2.5]" />
             </div>
+            <span className="text-[10px] font-black text-amber-400 bg-slate-950/80 px-2 py-0.5 rounded-full block text-center mt-1">
+              KALECİ
+            </span>
           </div>
         </div>
 
-        {/* Drag Aim Vector Dotted Line */}
+        {/* Aim Drag Vector */}
         {dragStart && dragCurrent && (
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-30">
             <line
@@ -328,29 +327,35 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
               y1={dragStart.y}
               x2={dragCurrent.x}
               y2={dragCurrent.y}
-              stroke="#22D3EE"
+              stroke="#10B981"
               strokeWidth="4"
               strokeDasharray="6 6"
+              strokeLinecap="round"
             />
-            <circle cx={dragCurrent.x} cy={dragCurrent.y} r="8" fill="#22D3EE" opacity="0.6" />
+            <circle cx={dragCurrent.x} cy={dragCurrent.y} r="8" fill="#10B981" opacity="0.8" />
           </svg>
         )}
 
-        {/* Ball */}
+        {/* Football SVG */}
         <div
           style={{
             left: `${ballPos.x}%`,
             top: `${ballPos.y}%`,
           }}
-          className="absolute -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center shadow-2xl transition-all duration-500 z-30"
+          className="absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 transition-all duration-500 z-20 drop-shadow-2xl"
         >
-          <Goal className="w-6 h-6 text-slate-950 stroke-[2.5]" aria-hidden="true" />
+          <svg width="56" height="56" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="46" fill="#F8FAFC" stroke="#0F172A" strokeWidth="4" />
+            <polygon points="50,22 65,33 60,52 40,52 35,33" fill="#0F172A" />
+            <polygon points="20,60 32,55 40,68 32,80 18,75" fill="#0F172A" />
+            <polygon points="80,60 68,55 60,68 68,80 82,75" fill="#0F172A" />
+          </svg>
         </div>
 
-        {/* Footer Guidance */}
-        <div className="text-center py-2 bg-slate-900/80 border border-slate-800 rounded-2xl">
-          <p className="text-xs text-slate-300 font-bold flex items-center justify-center gap-1.5">
-            <ArrowUpRight className="w-4 h-4 text-cyan-400" /> Topa dokunup hedeflediğiniz köşeye doğru sürükleyip bırakın!
+        {/* Instruction Footer */}
+        <div className="text-center py-2.5 bg-slate-900/80 border border-slate-800 rounded-2xl backdrop-blur">
+          <p className="text-xs text-emerald-400 font-black flex items-center justify-center gap-1">
+            <ArrowUpRight className="w-4 h-4" /> Topa dokunup hedeflediğiniz köşeye doğru sürükleyip bırakın!
           </p>
         </div>
       </div>
