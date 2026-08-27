@@ -23,18 +23,18 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
   const [currentRound, setCurrentRound] = useState<number>(1);
   const totalRounds = 5;
 
-  const [_playerScores, setPlayerScores] = useState<Record<string, number>>(() => {
+  const [playerScores, setPlayerScores] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
     players.forEach((p) => (initial[p.id] = 0));
     return initial;
   });
 
-  const [_bestReactionMs, setBestReactionMs] = useState<number | null>(null);
+  const [bestReactionMs, setBestReactionMs] = useState<number | null>(null);
 
   const goTimeoutRef = useRef<any>(null);
   const goStartTimeRef = useRef<number>(0);
   const isFinishedRef = useRef<boolean>(false);
-  const bestReactionMsRef = useRef<number | null>(null);
+  const reactionTimesRef = useRef<number[]>([]);
   const playerScoresRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
     const randomDelay = 2000 + Math.random() * 3500;
     goTimeoutRef.current = setTimeout(() => {
       setRoundState('go');
-      setStatusMessage('DOKUN!');
+      setStatusMessage('ŞİMDİ DOKUN!');
       goStartTimeRef.current = performance.now();
       playBeepSound(880, 0.15, soundEnabled);
       triggerVibration(20, vibrationEnabled);
@@ -65,14 +65,14 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
   };
 
   const handleTap = (playerId: string) => {
-    if (isFinishedRef.current) return;
+    if (isFinishedRef.current || roundState === 'round-end' || roundState === 'foul') return;
 
     if (roundState === 'ready') {
       if (goTimeoutRef.current) clearTimeout(goTimeoutRef.current);
       setRoundState('foul');
       playBeepSound(150, 0.3, soundEnabled);
       triggerVibration(50, vibrationEnabled);
-      setStatusMessage('ERKEN DOKUNUŞ! FAUL!');
+      setStatusMessage('ERKEN DOKUNUŞ! (FAUL)');
 
       setTimeout(() => advanceRound(), 1500);
       return;
@@ -85,6 +85,10 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
       playFanfareSound(soundEnabled);
       triggerVibration(15, vibrationEnabled);
 
+      reactionTimesRef.current.push(reactionMs);
+      const currentBest = Math.min(...reactionTimesRef.current);
+      setBestReactionMs(currentBest);
+
       const newScore = (playerScoresRef.current[playerId] || 0) + 1;
       playerScoresRef.current[playerId] = newScore;
       setPlayerScores((prev) => ({
@@ -92,12 +96,7 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
         [playerId]: newScore,
       }));
 
-      if (bestReactionMsRef.current === null || reactionMs < bestReactionMsRef.current) {
-        bestReactionMsRef.current = reactionMs;
-        setBestReactionMs(reactionMs);
-      }
-
-      setStatusMessage(`${reactionMs} ms!`);
+      setStatusMessage(`${reactionMs} ms! (En İyi: ${currentBest} ms)`);
 
       setTimeout(() => advanceRound(), 1800);
     }
@@ -115,14 +114,19 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
     if (isFinishedRef.current) return;
     isFinishedRef.current = true;
 
+    const validTimes = reactionTimesRef.current;
+    const bestTime = validTimes.length > 0 ? Math.min(...validTimes) : 500;
+    const avgTime = validTimes.length > 0 ? Math.round(validTimes.reduce((a, b) => a + b, 0) / validTimes.length) : 500;
+
     if (mode === 'single') {
-      const finalMs = bestReactionMsRef.current || 500;
       onFinishGame([
         {
           playerId: players[0].id,
-          score: finalMs,
+          score: bestTime, // Lower score is better!
           stats: {
-            'En Hızlı Tepki': `${finalMs} ms`,
+            'En Hızlı Tepki': `${bestTime} ms`,
+            'Ortalama Tepki': `${avgTime} ms`,
+            'Başarılı Raund': `${validTimes.length} / ${totalRounds}`,
           },
         },
       ]);
@@ -137,6 +141,7 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
         playerId: p.id,
         score: playerScoresRef.current[p.id] || 0,
         stats: {
+          'En Hızlı Tepki': `${bestTime} ms`,
           'Kazanılan Raund': playerScoresRef.current[p.id] || 0,
         },
       }));
@@ -154,9 +159,16 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
           <span className="font-extrabold text-sm text-white">Refleks Düellosu</span>
         </div>
 
-        <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
-          Raund {currentRound} / {totalRounds}
-        </span>
+        <div className="flex items-center gap-3 text-xs font-black">
+          {bestReactionMs && (
+            <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+              En Hızlı: {bestReactionMs} ms
+            </span>
+          )}
+          <span className="text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
+            Raund {currentRound} / {totalRounds}
+          </span>
+        </div>
       </div>
 
       {/* Main Interactive Arena */}
@@ -184,7 +196,7 @@ export const ReflexGame: React.FC<ReflexGameProps> = ({
             style={{ backgroundColor: p.color }}
             className="py-5 rounded-2xl font-black text-xl text-slate-950 shadow-xl border-2 border-white/30 active:scale-95 transition-transform"
           >
-            {p.name} - DOKUN!
+            {p.name} - DOKUN! ({playerScores[p.id] || 0})
           </button>
         ))}
       </div>

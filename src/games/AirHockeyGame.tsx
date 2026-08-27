@@ -37,21 +37,34 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const isFinishedRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Single player AI Paddle Loop
+  // Dynamic AI Bot Paddle Logic (Single Player)
   useEffect(() => {
     if (mode !== 'single' || isFinishedRef.current) return;
+
     const interval = setInterval(() => {
       setP2Paddle((prev) => {
-        const dx = puck.x - prev.x;
-        const speed = 0.15;
-        const newX = Math.min(Math.max(prev.x + dx * speed, 20), 80);
-        return { x: newX, y: 20 };
+        // If puck is in AI's half (y < 50), AI aggressively moves towards puck
+        // If puck is in player's half (y >= 50), AI retreats to defend goal
+        const targetX = puck.x;
+        const targetY = puck.y < 50 ? Math.min(38, Math.max(12, puck.y - 4)) : 16;
+
+        const dx = targetX - prev.x;
+        const dy = targetY - prev.y;
+
+        const speedX = 0.28;
+        const speedY = 0.25;
+
+        const newX = Math.min(Math.max(prev.x + dx * speedX, 15), 85);
+        const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 44);
+
+        return { x: newX, y: newY };
       });
-    }, 30);
+    }, 25);
+
     return () => clearInterval(interval);
   }, [mode, puck]);
 
-  // Puck Motion & Physics Loop
+  // Puck Motion & Collision Physics Loop
   useEffect(() => {
     if (isFinishedRef.current) return;
 
@@ -102,7 +115,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         const distP1 = Math.hypot(newX - p1Paddle.x, newY - p1Paddle.y);
         if (distP1 < 10) {
           vy = -Math.abs(vy) - 0.05;
-          vx = (newX - p1Paddle.x) * 0.08;
+          vx = (newX - p1Paddle.x) * 0.09;
           playBeepSound(600, 0.08, soundEnabled);
           triggerVibration(15, vibrationEnabled);
         }
@@ -111,7 +124,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         const distP2 = Math.hypot(newX - p2Paddle.x, newY - p2Paddle.y);
         if (distP2 < 10) {
           vy = Math.abs(vy) + 0.05;
-          vx = (newX - p2Paddle.x) * 0.08;
+          vx = (newX - p2Paddle.x) * 0.09;
           playBeepSound(600, 0.08, soundEnabled);
           triggerVibration(15, vibrationEnabled);
         }

@@ -34,11 +34,11 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     return initial;
   });
 
-  const [aimPos, setAimPos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
   const [isCharging, setIsCharging] = useState<boolean>(false);
   const [power, setPower] = useState<number>(0);
   const [wind, setWind] = useState<WindConfig>({ x: 0, y: 0, label: 'Sakin Rüzgâr' });
 
+  const [lastArrowHit, setLastArrowHit] = useState<{ x: number; y: number } | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const isFinishedRef = useRef<boolean>(false);
@@ -51,10 +51,11 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   }, [players]);
 
   const windsList: WindConfig[] = [
-    { x: -15, y: 0, label: 'Sol Yönlü Rüzgâr' },
-    { x: 22, y: -8, label: 'Sağ Yönlü Rüzgâr' },
-    { x: 0, y: -15, label: 'Kafa Rüzgârı' },
-    { x: 0, y: 0, label: 'Sakin Rüzgâr' },
+    { x: -14, y: 6, label: 'Sol Yönlü Rüzgâr' },
+    { x: 18, y: -8, label: 'Sağ Yönlü Rüzgâr' },
+    { x: 0, y: 14, label: 'Aşağı Doğru Rüzgâr' },
+    { x: 0, y: -10, label: 'Kafa Rüzgârı' },
+    { x: 8, y: 4, label: 'Hafif Meltem' },
   ];
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
@@ -70,27 +71,42 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     const interval = setInterval(() => {
       setPower((prev) => {
         if (prev >= 100) return 0;
-        return prev + 5;
+        return prev + 4;
       });
-    }, 30);
+    }, 25);
 
     return () => clearInterval(interval);
   }, [isCharging]);
 
   const handleStartAim = () => {
-    if (isFinishedRef.current) return;
+    if (isFinishedRef.current || feedback) return;
     setIsCharging(true);
     setPower(0);
+    setLastArrowHit(null);
   };
 
   const handleReleaseAim = () => {
     if (!isCharging || isFinishedRef.current) return;
     setIsCharging(false);
 
-    const finalX = Math.min(95, Math.max(5, aimPos.x + wind.x * (power / 100)));
-    const finalY = Math.min(95, Math.max(5, aimPos.y + wind.y * (power / 100)));
+    // Physics Math: Optimal power is 80-85%.
+    // If power is low (<80%), gravity causes the arrow to drop significantly downwards!
+    // If power is 100%, overcharge causes wobble.
+    const optimalPower = 85;
+    const powerDiff = (power - optimalPower) / 100;
 
-    evaluateArrowHit(finalX, finalY);
+    // Gravity vertical sag: low power drops down, high power pushes slightly high
+    const gravityDropY = (1 - power / optimalPower) * 38;
+
+    // Wind displacement scales with exposure time (lower power = more drift)
+    const windEffectX = wind.x * (1 + (100 - power) / 100);
+    const windEffectY = wind.y * (1 + (100 - power) / 100);
+
+    const hitX = Math.min(95, Math.max(5, 50 + windEffectX + powerDiff * 5));
+    const hitY = Math.min(95, Math.max(5, 50 + gravityDropY + windEffectY));
+
+    setLastArrowHit({ x: hitX, y: hitY });
+    evaluateArrowHit(hitX, hitY);
   };
 
   const evaluateArrowHit = (x: number, y: number) => {
@@ -101,21 +117,27 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     let score = 0;
     let text = '';
 
-    if (dist < 6) {
+    if (dist <= 5) {
       score = 10;
-      text = 'TAM 10 PUANLIK MERKEZ VURUŞU!';
-    } else if (dist < 14) {
-      score = 8;
-      text = 'İÇ HALKA! (+8 PUAN)';
-    } else if (dist < 25) {
+      text = '🎯 TAM 10 PUAN! SARI MERKEZ VURUŞU';
+    } else if (dist <= 12) {
+      score = 9;
+      text = '🎯 9 PUAN! SARI HALKA';
+    } else if (dist <= 22) {
+      score = 7;
+      text = '🔴 7 PUAN! KIRMIZI HALKA';
+    } else if (dist <= 33) {
       score = 5;
-      text = 'ORTA HALKA! (+5 PUAN)';
-    } else if (dist < 38) {
-      score = 2;
-      text = 'DIŞ HALKA! (+2 PUAN)';
+      text = '🔵 5 PUAN! MAVİ HALKA';
+    } else if (dist <= 44) {
+      score = 3;
+      text = '⚫ 3 PUAN! SİYAH HALKA';
+    } else if (dist <= 50) {
+      score = 1;
+      text = '⚪ 1 PUAN! BEYAZ DIŞ HALKA';
     } else {
       score = 0;
-      text = 'KARAVANA! (İsabet Sağlanamadı)';
+      text = '❌ KARAVANA! (Tahtaya İsabet Edemedi)';
     }
 
     setFeedback(text);
@@ -136,7 +158,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
     setTimeout(() => {
       setFeedback(null);
-      setAimPos({ x: 50, y: 50 });
 
       if (mode === 'single') {
         if (currentShot < totalShots) {
@@ -154,7 +175,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           finishGame();
         }
       }
-    }, 1500);
+    }, 1600);
   };
 
   const finishGame = () => {
@@ -165,7 +186,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       playerId: p.id,
       score: playerScoresRef.current[p.id] || 0,
       stats: {
-        'Toplam Puan': playerScoresRef.current[p.id] || 0,
+        'Toplam Okçuluk Skoru': playerScoresRef.current[p.id] || 0,
       },
     }));
 
@@ -175,7 +196,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   return (
     <div className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none overflow-hidden touch-none p-3 space-y-2">
       {/* Header Bar */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 shadow-md">
+      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-md">
         <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-amber-400" aria-hidden="true" />
           <span className="font-extrabold text-sm text-white">Okçuluk</span>
@@ -192,46 +213,86 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
         </div>
       </div>
 
-      {/* Main Target Pitch Arena */}
-      <div className="flex-1 relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4">
+      {/* Main Archery Field Pitch Arena */}
+      <div className="flex-1 relative bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950/20 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4">
         {/* Feedback Banner */}
         {feedback && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border border-amber-400 px-5 py-2 rounded-full font-black text-xs text-amber-400 shadow-2xl animate-scale-up">
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-amber-400 px-5 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up">
             {feedback}
           </div>
         )}
 
-        {/* Wind Status HUD */}
-        <div className="flex items-center justify-between bg-slate-900/80 border border-slate-800 px-4 py-2 rounded-2xl text-xs font-black text-slate-300">
+        {/* Wind Status & Power HUD */}
+        <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 px-4 py-2.5 rounded-2xl text-xs font-black text-slate-300 shadow-lg">
           <div className="flex items-center gap-1.5 text-cyan-400">
             <Wind className="w-4 h-4" aria-hidden="true" /> {wind.label}
           </div>
-          <span>Güç: %{power}</span>
-        </div>
 
-        {/* Archery Target Concentric Rings */}
-        <div className="relative w-64 h-64 mx-auto my-auto rounded-full border-4 border-slate-950 shadow-2xl flex items-center justify-center overflow-hidden">
-          <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center">
-            <div className="w-4/5 h-4/5 rounded-full bg-slate-900 flex items-center justify-center">
-              <div className="w-3/5 h-3/5 rounded-full bg-blue-600 flex items-center justify-center">
-                <div className="w-2/5 h-2/5 rounded-full bg-rose-600 flex items-center justify-center">
-                  <div className="w-2/5 h-2/5 rounded-full bg-amber-400 border border-amber-300 shadow-inner flex items-center justify-center text-slate-950 font-black text-xs">
-                    +10
-                  </div>
-                </div>
-              </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Güç Barı</span>
+            <div className="w-28 h-3 bg-slate-950 rounded-full border border-slate-700 overflow-hidden">
+              <div
+                style={{ width: `${power}%` }}
+                className={`h-full transition-all duration-75 ${
+                  power >= 80 && power <= 90
+                    ? 'bg-emerald-400 shadow-emerald-500/50 shadow-md'
+                    : 'bg-amber-400'
+                }`}
+              />
             </div>
-          </div>
-
-          <div
-            style={{ left: `${aimPos.x}%`, top: `${aimPos.y}%` }}
-            className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 border-cyan-400 bg-cyan-400/20 flex items-center justify-center pointer-events-none z-30"
-          >
-            <div className="w-2 h-2 rounded-full bg-cyan-400" />
+            <span className="text-amber-400 w-8 text-right">%{power}</span>
           </div>
         </div>
 
-        {/* Aim & Release Button */}
+        {/* High Quality Official World Archery Target Board SVG */}
+        <div className="relative w-72 h-72 mx-auto my-auto flex items-center justify-center">
+          <svg width="280" height="280" viewBox="0 0 200 200" className="drop-shadow-2xl">
+            {/* Target Wooden Stand Legs */}
+            <line x1="40" y1="180" x2="20" y2="200" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
+            <line x1="160" y1="180" x2="180" y2="200" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
+            <line x1="100" y1="180" x2="100" y2="200" stroke="#78350F" strokeWidth="10" strokeLinecap="round" />
+
+            {/* Target Outer Frame */}
+            <circle cx="100" cy="100" r="98" fill="#1E293B" stroke="#0F172A" strokeWidth="4" />
+
+            {/* Concentric Score Rings */}
+            {/* White Rings 1-2 */}
+            <circle cx="100" cy="100" r="94" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
+            <circle cx="100" cy="100" r="82" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
+
+            {/* Black Rings 3-4 */}
+            <circle cx="100" cy="100" r="70" fill="#0F172A" stroke="#334155" strokeWidth="1" />
+            <circle cx="100" cy="100" r="58" fill="#0F172A" stroke="#334155" strokeWidth="1" />
+
+            {/* Blue Rings 5-6 */}
+            <circle cx="100" cy="100" r="46" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
+            <circle cx="100" cy="100" r="34" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
+
+            {/* Red Rings 7-8 */}
+            <circle cx="100" cy="100" r="24" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
+            <circle cx="100" cy="100" r="16" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
+
+            {/* Gold Rings 9-10 */}
+            <circle cx="100" cy="100" r="10" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+            <circle cx="100" cy="100" r="4" fill="#FBBF24" stroke="#D97706" strokeWidth="1" />
+            <circle cx="100" cy="100" r="1.5" fill="#020617" />
+          </svg>
+
+          {/* Embedded Arrow Graphic when shot */}
+          {lastArrowHit && (
+            <div
+              style={{ left: `${lastArrowHit.x}%`, top: `${lastArrowHit.y}%` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 animate-scale-up"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" className="drop-shadow-lg">
+                <circle cx="12" cy="12" r="4" fill="#EF4444" stroke="#F8FAFC" strokeWidth="2" />
+                <line x1="12" y1="12" x2="22" y2="2" stroke="#F8FAFC" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </div>
+          )}
+        </div>
+
+        {/* Charging & Release Control Button */}
         <button
           onPointerDown={handleStartAim}
           onPointerUp={handleReleaseAim}
@@ -241,7 +302,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
               : 'bg-cyan-500 border-cyan-400 text-slate-950 hover:bg-cyan-400'
           }`}
         >
-          {isCharging ? 'BIRAŞ VE ATIŞ YAP!' : 'BASILI TUT (GÜÇ TOPLA)'}
+          {isCharging ? 'SERBEST BRAK (OKU FIRLAT!)' : 'BASILI TUT (YAYI GER & GÜÇ TOPLA)'}
         </button>
       </div>
     </div>

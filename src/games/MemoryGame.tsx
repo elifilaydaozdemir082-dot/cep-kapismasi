@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Brain } from 'lucide-react';
+import { Brain, Trophy } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -21,24 +21,26 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   const [userSequence, setUserSequence] = useState<number[]>([]);
   const [activeButton, setActiveButton] = useState<number | null>(null);
   const [isShowingSequence, setIsShowingSequence] = useState<boolean>(false);
+  const [level, setLevel] = useState<number>(1);
   const [score, setScore] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const isFinishedRef = useRef<boolean>(false);
   const scoreRef = useRef<number>(0);
+  const levelRef = useRef<number>(1);
 
   const colors = [
-    { id: 0, bg: 'bg-rose-500', activeBg: 'bg-rose-300' },
-    { id: 1, bg: 'bg-cyan-500', activeBg: 'bg-cyan-300' },
-    { id: 2, bg: 'bg-amber-400', activeBg: 'bg-amber-200' },
-    { id: 3, bg: 'bg-emerald-500', activeBg: 'bg-emerald-300' },
+    { id: 0, name: 'Kırmızı', bg: 'bg-rose-500', activeBg: 'bg-rose-300' },
+    { id: 1, name: 'Mavi', bg: 'bg-cyan-500', activeBg: 'bg-cyan-300' },
+    { id: 2, name: 'Sarı', bg: 'bg-amber-400', activeBg: 'bg-amber-200' },
+    { id: 3, name: 'Yeşil', bg: 'bg-emerald-500', activeBg: 'bg-emerald-300' },
   ];
 
   useEffect(() => {
-    startNextTurn([]);
+    startNextLevel([]);
   }, []);
 
-  const startNextTurn = (currentSeq: number[]) => {
+  const startNextLevel = (currentSeq: number[]) => {
     if (isFinishedRef.current) return;
     const nextBtn = Math.floor(Math.random() * 4);
     const newSeq = [...currentSeq, nextBtn];
@@ -49,12 +51,16 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
 
   const showSequence = async (seq: number[]) => {
     setIsShowingSequence(true);
+
+    // Sequence playback speeds up progressive with level (min 200ms)
+    const flashDelay = Math.max(200, 420 - levelRef.current * 20);
+
     for (let i = 0; i < seq.length; i++) {
       if (isFinishedRef.current) return;
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, flashDelay));
       setActiveButton(seq[i]);
       playTapSound(soundEnabled);
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, flashDelay));
       setActiveButton(null);
     }
     setIsShowingSequence(false);
@@ -71,27 +77,34 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
 
     const currentStep = nextUserSeq.length - 1;
     if (nextUserSeq[currentStep] !== sequence[currentStep]) {
-      // Wrong sequence!
-      playBeepSound(200, 0.4, soundEnabled);
+      // Wrong sequence! Survival Game Over!
+      playBeepSound(150, 0.4, soundEnabled);
       triggerVibration(60, vibrationEnabled);
-      setFeedback('HATALI DİZİ!');
-      setTimeout(() => finishGame(), 1200);
+      setFeedback('❌ HATALI DIZILIM! OYUN BİTTİ');
+      setTimeout(() => finishGame(), 1400);
       return;
     }
 
     if (nextUserSeq.length === sequence.length) {
-      // Completed round!
+      // Level Completed! Advance to next level
       playFanfareSound(soundEnabled);
       triggerVibration([20, 30], vibrationEnabled);
-      const nextScore = scoreRef.current + 1;
+
+      const nextLevel = levelRef.current + 1;
+      const nextScore = scoreRef.current + sequence.length * 10;
+
+      levelRef.current = nextLevel;
       scoreRef.current = nextScore;
+
+      setLevel(nextLevel);
       setScore(nextScore);
-      setFeedback('DOĞRU! SONRAKİ ADIM...');
+
+      setFeedback(`✨ SEVİYE ${levelRef.current} GEÇİLDİ!`);
 
       setTimeout(() => {
         setFeedback(null);
-        startNextTurn(sequence);
-      }, 1000);
+        startNextLevel(sequence);
+      }, 1100);
     }
   };
 
@@ -104,7 +117,8 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
         playerId: players[0].id,
         score: scoreRef.current,
         stats: {
-          'Hafıza Adımı': scoreRef.current,
+          'Ulaşılan Seviye': `Seviye ${levelRef.current}`,
+          'Toplam Puan': scoreRef.current,
         },
       },
     ]);
@@ -119,19 +133,33 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
           <span className="font-extrabold text-sm text-white">Hafıza Rotası</span>
         </div>
 
-        <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
-          Adım: {score}
-        </span>
+        <div className="flex items-center gap-3 text-xs font-black">
+          <span className="text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5" /> Seviye {level}
+          </span>
+          <span className="text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
+            Skor: {score}
+          </span>
+        </div>
       </div>
 
       {/* Main Memory Pad Arena */}
-      <div className="flex-1 relative bg-slate-900 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-6">
+      <div className="flex-1 relative bg-gradient-to-b from-slate-950 via-slate-900 to-pink-950/20 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-6">
         {/* Feedback Banner */}
         {feedback && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border border-pink-500 px-5 py-2 rounded-full font-black text-xs text-amber-400 shadow-2xl animate-scale-up">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-pink-500 px-5 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up">
             {feedback}
           </div>
         )}
+
+        {/* Status Hint */}
+        <div className="text-center space-y-1">
+          <p className="text-xs font-black text-slate-300">
+            {isShowingSequence
+              ? '👀 IŞIK DİZİLİMİNİ İZLEYİN...'
+              : `🎯 SEVİYE ${level}: ${sequence.length} ADIMLI DİZİYİ TEKRAR EDİN`}
+          </p>
+        </div>
 
         {/* 4 Colored Memory Buttons Grid */}
         <div className="grid grid-cols-2 gap-4 my-auto aspect-square max-w-xs mx-auto w-full">
