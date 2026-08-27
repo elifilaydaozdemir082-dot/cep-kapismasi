@@ -46,17 +46,31 @@ export default function MainMenuScreen() {
         <View style={styles.menuList}>
           <TouchableOpacity
             style={[styles.menuButton, styles.primaryButton]}
-            onPress={handleSinglePlayerPress}
+            onPress={() => router.push('/webview')}
             activeOpacity={0.8}
           >
             <View style={styles.iconCirclePrimary}>
-              <User size={24} color="#020617" />
+              <Zap size={24} color="#020617" fill="#020617" />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.primaryButtonText}>Tek Oyunculu</Text>
-              <Text style={styles.buttonSubtext}>Kendi Rekorlarını Kır ve Eğlen</Text>
+              <Text style={styles.primaryButtonText}>🚀 TÜM OYUNLAR (25+ KAPISMA)</Text>
+              <Text style={styles.buttonSubtext}>Okçuluk, Basket, Penaltı, Halat Çekme vb.</Text>
             </View>
             <Play size={20} color="#020617" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={handleSinglePlayerPress}
+            activeOpacity={0.8}
+          >
+            <View style={styles.iconCircleSecondary}>
+              <User size={22} color="#38BDF8" />
+            </View>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonText}>Tek Oyunculu Mobil</Text>
+              <Text style={styles.buttonSubtext}>Yerel Mobil Ekranlar</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
