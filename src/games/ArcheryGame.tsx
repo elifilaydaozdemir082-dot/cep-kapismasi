@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Target, Compass, Sparkles, Trophy, Zap } from 'lucide-react';
+import { Target, Compass, Trophy, Zap } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -12,17 +12,17 @@ interface ArcheryGameProps {
 }
 
 interface WindVector {
-  speed: number; // in m/s (0.5 .. 4.5)
-  angle: number; // degrees (0 .. 360)
+  speed: number; // m/s
+  angle: number; // degrees
   label: string;
 }
 
 const WIND_PRESETS: WindVector[] = [
   { speed: 1.2, angle: 45, label: '↗️ 1.2 m/s Kuzeydoğu Meltemi' },
-  { speed: 2.8, angle: 180, label: '⬇️ 2.8 m/s Güney Rüzgârı' },
-  { speed: 3.5, angle: 270, label: '⬅️ 3.5 m/s Batı Fırtınası' },
-  { speed: 0.8, angle: 90, label: '➡️ 0.8 m/s Doğu Rüzgârı' },
-  { speed: 4.2, angle: 315, label: '↖️ 4.2 m/s Şiddetli Rüzgâr' },
+  { speed: 2.5, angle: 180, label: '⬇️ 2.5 m/s Güney Rüzgârı' },
+  { speed: 3.2, angle: 270, label: '⬅️ 3.2 m/s Batı Fırtınası' },
+  { speed: 0.9, angle: 90, label: '➡️ 0.9 m/s Doğu Rüzgârı' },
+  { speed: 3.8, angle: 315, label: '↖️ 3.8 m/s Şiddetli Rüzgâr' },
 ];
 
 export const ArcheryGame: React.FC<ArcheryGameProps> = ({
@@ -42,19 +42,19 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     return initial;
   });
 
-  // Pull-to-Draw Bow & Aiming State (pixel-based for exact hitboxes)
-  const [aimTarget, setAimTarget] = useState<{ x: number; y: number } | null>(null);
+  // Target SVG Coordinate Space (viewBox 0 0 200 200, Center is (100, 100))
+  const [aimSvg, setAimSvg] = useState<{ x: number; y: number } | null>(null);
   const [isShooting, setIsShooting] = useState<boolean>(false);
   const [wind, setWind] = useState<WindVector>(WIND_PRESETS[0]);
 
-  // Arrow Flying & Impact State
-  const [arrowPos, setArrowPos] = useState<{ x: number; y: number }>({ x: 50, y: 88 });
-  const [arrowScale, setArrowScale] = useState<number>(1);
+  // Arrow Flight & Impact in SVG Coordinates
+  const [arrowSvg, setArrowSvg] = useState<{ x: number; y: number }>({ x: 100, y: 240 });
+  const [arrowScale, setArrowScale] = useState<number>(1.8);
   const [stuckArrows, setStuckArrows] = useState<{ x: number; y: number; id: number }[]>([]);
 
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const targetSvgRef = useRef<SVGSVGElement>(null);
   const isFinishedRef = useRef<boolean>(false);
   const playerScoresRef = useRef<Record<string, number>>({});
   const animFrameRef = useRef<number | null>(null);
@@ -67,69 +67,71 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
-  // Rotate wind vector on each shot
   useEffect(() => {
     const randWind = WIND_PRESETS[Math.floor(Math.random() * WIND_PRESETS.length)];
     setWind(randWind);
   }, [currentShot, currentPlayerIdx]);
 
-  // Normalized % pointer coordinates
-  const getPointerPct = (e: React.PointerEvent) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 50, y: 48 };
-    const xPct = Math.min(92, Math.max(8, ((e.clientX - rect.left) / rect.width) * 100));
-    const yPct = Math.min(85, Math.max(12, ((e.clientY - rect.top) / rect.height) * 100));
-    return { x: xPct, y: yPct };
+  // Convert pointer screen position directly into SVG (0..200) coordinates
+  const getSvgCoords = (e: React.PointerEvent) => {
+    if (!targetSvgRef.current) return { x: 100, y: 100 };
+    const rect = targetSvgRef.current.getBoundingClientRect();
+    const xRatio = (e.clientX - rect.left) / rect.width;
+    const yRatio = (e.clientY - rect.top) / rect.height;
+
+    const svgX = Math.min(195, Math.max(5, xRatio * 200));
+    const svgY = Math.min(195, Math.max(5, yRatio * 200));
+    return { x: svgX, y: svgY };
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isShooting || isFinishedRef.current) return;
-    const pt = getPointerPct(e);
-    setAimTarget(pt);
+    const pt = getSvgCoords(e);
+    setAimSvg(pt);
     playTapSound(soundEnabled);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!aimTarget || isShooting || isFinishedRef.current) return;
-    const pt = getPointerPct(e);
-    setAimTarget(pt);
+    if (!aimSvg || isShooting || isFinishedRef.current) return;
+    const pt = getSvgCoords(e);
+    setAimSvg(pt);
   };
 
   const handlePointerUp = () => {
-    if (!aimTarget || isShooting || isFinishedRef.current) {
-      setAimTarget(null);
+    if (!aimSvg || isShooting || isFinishedRef.current) {
+      setAimSvg(null);
       return;
     }
 
-    const rawTarget = { ...aimTarget };
-    setAimTarget(null);
+    const rawSvg = { ...aimSvg };
+    setAimSvg(null);
     setIsShooting(true);
 
-    // Wind Drift Vector Physics Calculation
+    // Calculate Wind Drift directly in SVG units
     const rad = (wind.angle * Math.PI) / 180;
-    const driftX = Math.cos(rad) * wind.speed * 1.8;
-    const driftY = Math.sin(rad) * wind.speed * 1.8;
+    const driftX = Math.cos(rad) * wind.speed * 4.5;
+    const driftY = Math.sin(rad) * wind.speed * 4.5;
 
-    const finalHitX = Math.min(92, Math.max(8, rawTarget.x + driftX));
-    const finalHitY = Math.min(85, Math.max(12, rawTarget.y + driftY));
+    const hitSvgX = Math.min(195, Math.max(5, rawSvg.x + driftX));
+    const hitSvgY = Math.min(195, Math.max(5, rawSvg.y + driftY));
 
-    // Launch Flight Animation
-    launchArrowFlight(finalHitX, finalHitY);
+    // Launch Flight Animation inside SVG
+    launchArrowFlight(hitSvgX, hitSvgY);
   };
 
   const launchArrowFlight = (hitX: number, hitY: number) => {
-    const startX = 50;
-    const startY = 88;
+    const startX = 100;
+    const startY = 250;
 
     let progress = 0;
-    const durationFrames = 24; // 400ms flight
+    const durationFrames = 22; // 360ms flight
 
     const animate = () => {
       progress += 1 / durationFrames;
 
       if (progress >= 1) {
-        setArrowPos({ x: hitX, y: hitY });
-        setArrowScale(0.4);
+        setArrowSvg({ x: hitX, y: hitY });
+        setArrowScale(1);
         evaluateArrowHit(hitX, hitY);
         return;
       }
@@ -138,8 +140,8 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       const currentX = (1 - t) * startX + t * hitX;
       const currentY = (1 - t) * startY + t * hitY;
 
-      setArrowPos({ x: currentX, y: currentY });
-      setArrowScale(1 - t * 0.6);
+      setArrowSvg({ x: currentX, y: currentY });
+      setArrowScale(1.8 - t * 0.8);
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
@@ -148,59 +150,49 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   };
 
   const evaluateArrowHit = (hitX: number, hitY: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    let distRatio = 100; // default miss ratio
-
-    if (rect) {
-      // Calculate Pixel Coordinates for exact circular target ring distance
-      const hitX_px = (hitX / 100) * rect.width;
-      const hitY_px = (hitY / 100) * rect.height;
-
-      // Target Board Center is fixed at (width / 2, height * 0.48)
-      const targetCenterX_px = rect.width / 2;
-      const targetCenterY_px = rect.height * 0.48;
-
-      // Target Board Radius is 140px (280px / 2)
-      const targetRadius_px = 140;
-
-      const dx_px = hitX_px - targetCenterX_px;
-      const dy_px = hitY_px - targetCenterY_px;
-
-      const dist_px = Math.hypot(dx_px, dy_px);
-      distRatio = (dist_px / targetRadius_px) * 100;
-    }
+    // Target Center in SVG is EXACTLY (100, 100)
+    const targetCenterX = 100;
+    const targetCenterY = 100;
+    const radius = Math.hypot(hitX - targetCenterX, hitY - targetCenterY);
 
     let score = 0;
     let text = '';
 
-    // Precise Ring Radii match SVG target rings 100%:
-    // Gold: <= 10%, 9 Pts: <= 24%, Red: <= 46%, Blue: <= 70%, Black: <= 94%, White: <= 100%
-    if (distRatio <= 8.0) {
+    // Exact radii matching SVG circles 100% precisely:
+    // Gold Center: r <= 10
+    // Yellow Ring: 10 < r <= 16
+    // Red Ring: 16 < r <= 34
+    // Blue Ring: 34 < r <= 58
+    // Black Ring: 58 < r <= 82
+    // White Ring: 82 < r <= 98
+    // Miss: r > 98
+
+    if (radius <= 10.0) {
       score = 10;
       text = '🎯 TAM 12\'DEN BULLSEYE! (10 PUAN)';
-    } else if (distRatio <= 24.0) {
+    } else if (radius <= 16.0) {
       score = 9;
       text = '🟡 SARI ISABET! (9 PUAN)';
-    } else if (distRatio <= 46.0) {
+    } else if (radius <= 34.0) {
       score = 7;
       text = '🔴 KIRMIZI ISABET! (7 PUAN)';
-    } else if (distRatio <= 70.0) {
+    } else if (radius <= 58.0) {
       score = 5;
       text = '🔵 MAVİ ISABET! (5 PUAN)';
-    } else if (distRatio <= 94.0) {
+    } else if (radius <= 82.0) {
       score = 3;
       text = '⬛ SİYAH ISABET! (3 PUAN)';
-    } else if (distRatio <= 102.0) {
+    } else if (radius <= 98.0) {
       score = 1;
       text = '⚪ BEYAZ DIŞ HALKA! (1 PUAN)';
     } else {
       score = 0;
-      text = '❌ KARAVANA! (Dışarı Gitti)';
+      text = '❌ KARAVANA! (Tahtaya İsabet Edemedi)';
     }
 
     setFeedback(text);
 
-    // Save stuck arrow location
+    // Save stuck arrow inside SVG coordinates
     setStuckArrows((prev) => [...prev, { x: hitX, y: hitY, id: Date.now() }]);
 
     if (score > 0) {
@@ -219,8 +211,8 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
     setTimeout(() => {
       setFeedback(null);
-      setArrowPos({ x: 50, y: 88 });
-      setArrowScale(1);
+      setArrowSvg({ x: 100, y: 240 });
+      setArrowScale(1.8);
       setIsShooting(false);
 
       if (mode === 'single') {
@@ -273,7 +265,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           <span style={{ color: currentPlayer.color }} className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800">
             👤 {currentPlayer.name}
           </span>
-          <span className="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full flex items-center gap-1">
+          <span className="text-amber-400 bg-amber-500/10 border border-amber-400/20 px-3 py-1 rounded-full flex items-center gap-1">
             <Trophy className="w-3.5 h-3.5" /> Skor: {playerScores[currentPlayer.id] || 0}
           </span>
           <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full flex items-center gap-1">
@@ -282,13 +274,9 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
         </div>
       </div>
 
-      {/* Main Archery Field Pitch Arena */}
+      {/* Main Archery Field Arena */}
       <div
-        ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between cursor-crosshair"
+        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4"
         style={{
           background: 'linear-gradient(to bottom, #020617 0%, #064E3B 35%, #047857 70%, #065F46 100%)',
         }}
@@ -306,85 +294,77 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           </div>
         )}
 
-        {/* Official 10-Ring Target Board SVG (Target Center: Y: 48%) */}
-        <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 flex items-center justify-center pointer-events-none z-10">
-          <svg width="280" height="280" viewBox="0 0 200 200" className="drop-shadow-2xl">
+        {/* Unified Target SVG Canvas Container */}
+        <div className="relative w-80 h-80 mx-auto my-auto flex items-center justify-center cursor-crosshair">
+          <svg
+            ref={targetSvgRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            width="320"
+            height="320"
+            viewBox="0 0 200 200"
+            className="drop-shadow-2xl overflow-visible select-none"
+          >
             {/* Wooden Tripod Stand */}
-            <line x1="40" y1="180" x2="15" y2="210" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
-            <line x1="160" y1="180" x2="185" y2="210" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
-            <line x1="100" y1="180" x2="100" y2="215" stroke="#78350F" strokeWidth="10" strokeLinecap="round" />
+            <line x1="40" y1="180" x2="15" y2="215" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
+            <line x1="160" y1="180" x2="185" y2="215" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
+            <line x1="100" y1="180" x2="100" y2="220" stroke="#78350F" strokeWidth="10" strokeLinecap="round" />
 
             {/* Target Outer Frame */}
             <circle cx="100" cy="100" r="98" fill="#1E293B" stroke="#0F172A" strokeWidth="4" />
 
-            {/* Concentric Score Rings matching exact radius percentages */}
-            <circle cx="100" cy="100" r="94" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
+            {/* Concentric Score Rings */}
+            {/* White Rings 1-2 (r = 98 & 82) */}
+            <circle cx="100" cy="100" r="98" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
             <circle cx="100" cy="100" r="82" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
 
-            <circle cx="100" cy="100" r="70" fill="#0F172A" stroke="#334155" strokeWidth="1" />
+            {/* Black Rings 3-4 (r = 82 & 58) */}
+            <circle cx="100" cy="100" r="82" fill="#0F172A" stroke="#334155" strokeWidth="1" />
             <circle cx="100" cy="100" r="58" fill="#0F172A" stroke="#334155" strokeWidth="1" />
 
-            <circle cx="100" cy="100" r="46" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
+            {/* Blue Rings 5-6 (r = 58 & 34) */}
+            <circle cx="100" cy="100" r="58" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
             <circle cx="100" cy="100" r="34" fill="#2563EB" stroke="#1D4ED8" strokeWidth="1" />
 
-            <circle cx="100" cy="100" r="24" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
+            {/* Red Rings 7-8 (r = 34 & 16) */}
+            <circle cx="100" cy="100" r="34" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
             <circle cx="100" cy="100" r="16" fill="#DC2626" stroke="#B91C1C" strokeWidth="1" />
 
-            <circle cx="100" cy="100" r="10" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
-            <circle cx="100" cy="100" r="4" fill="#FBBF24" stroke="#D97706" strokeWidth="1" />
-            <circle cx="100" cy="100" r="1.5" fill="#020617" />
-          </svg>
-        </div>
+            {/* Gold Rings 9-10 (r = 16 & 10) */}
+            <circle cx="100" cy="100" r="16" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+            <circle cx="100" cy="100" r="10" fill="#FBBF24" stroke="#D97706" strokeWidth="1" />
+            <circle cx="100" cy="100" r="2" fill="#020617" />
 
-        {/* Stuck Arrows History on Target */}
-        {stuckArrows.map((arrow) => (
-          <div
-            key={arrow.id}
-            style={{ left: `${arrow.x}%`, top: `${arrow.y}%` }}
-            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20"
-          >
-            <div className="w-3 h-3 rounded-full bg-rose-500 border-2 border-white shadow-md flex items-center justify-center">
-              <div className="w-1 h-1 rounded-full bg-white" />
-            </div>
-          </div>
-        ))}
+            {/* Stuck Arrows Rendered Directly Inside SVG Canvas */}
+            {stuckArrows.map((arrow) => (
+              <g key={arrow.id} transform={`translate(${arrow.x}, ${arrow.y})`}>
+                <circle cx="0" cy="0" r="3.5" fill="#EF4444" stroke="#FFFFFF" strokeWidth="1.2" />
+                <line x1="0" y1="0" x2="8" y2="-12" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
+              </g>
+            ))}
 
-        {/* Aim Target Marker & Bowstring Guidance Line */}
-        {aimTarget && (
-          <div
-            style={{
-              left: `${aimTarget.x}%`,
-              top: `${aimTarget.y}%`,
-              transform: 'translate(-50%, -50%)',
-            }}
-            className="absolute z-50 pointer-events-none flex items-center justify-center"
-          >
-            <div className="w-10 h-10 rounded-full border-2 border-dashed border-amber-300 animate-spin-slow flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-            </div>
-          </div>
-        )}
+            {/* Aim Reticle Indicator */}
+            {aimSvg && (
+              <g transform={`translate(${aimSvg.x}, ${aimSvg.y})`}>
+                <circle cx="0" cy="0" r="8" fill="none" stroke="#F59E0B" strokeWidth="2" strokeDasharray="3 3" />
+                <circle cx="0" cy="0" r="2.5" fill="#F59E0B" />
+              </g>
+            )}
 
-        {/* Flying Arrow Graphic */}
-        <div
-          style={{
-            left: `${arrowPos.x}%`,
-            top: `${arrowPos.y}%`,
-            transform: `translate(-50%, -50%) scale(${arrowScale})`,
-          }}
-          className="absolute transition-transform duration-75 z-40 drop-shadow-2xl pointer-events-none"
-        >
-          <svg width="28" height="60" viewBox="0 0 28 60">
-            <line x1="14" y1="58" x2="14" y2="8" stroke="#F8FAFC" strokeWidth="3" strokeLinecap="round" />
-            <polygon points="14,2 8,12 20,12" fill="#EF4444" />
-            <polygon points="14,56 6,48 14,50 22,48" fill="#F59E0B" />
+            {/* Flying Arrow inside SVG Canvas */}
+            <g transform={`translate(${arrowSvg.x}, ${arrowSvg.y}) scale(${arrowScale})`}>
+              <line x1="0" y1="12" x2="0" y2="-12" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
+              <polygon points="0,-16 -4,-8 4,-8" fill="#EF4444" />
+              <polygon points="0,14 -4,8 0,9 4,8" fill="#F59E0B" />
+            </g>
           </svg>
         </div>
 
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-emerald-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-emerald-300 font-black flex items-center justify-center gap-1.5">
-            🎯 Ekrana dokunup yayı gererek hedef tahtasına nişan alın ve rüzgarı hesaba katarak bırakın!
+            🎯 Hedef tahtasına dokunarak nişan alın ve rüzgar sapmasını hesaba katarak bırakın!
           </p>
         </div>
       </div>
