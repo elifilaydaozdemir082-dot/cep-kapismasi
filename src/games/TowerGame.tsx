@@ -26,7 +26,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 }) => {
   const INITIAL_WIDTH = 55;
 
-  // Selected Duration Options (30s, 60s, 90s, Infinity)
+  // Selected Duration Options (30s, 60s, 90s, Unlimited)
   const [selectedDuration, setSelectedDuration] = useState<number | 'unlimited'>(60);
   const [timeLeft, setTimeLeft] = useState<number | 'unlimited'>(60);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
@@ -46,6 +46,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   const animRef = useRef<number | null>(null);
   const timeRef = useRef<number>(0);
   const isFinishedRef = useRef<boolean>(false);
+  const isGameOverRef = useRef<boolean>(false); // Strict Game Over Lock
   const scoreRef = useRef<number>(1);
   const perfectStreakRef = useRef<number>(0);
   const towerTiltRef = useRef<number>(0);
@@ -58,7 +59,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 
   // Countdown Timer Loop
   useEffect(() => {
-    if (!isGameStarted || isGameOver || isFinishedRef.current || selectedDuration === 'unlimited') return;
+    if (!isGameStarted || isGameOver || isGameOverRef.current || isFinishedRef.current || selectedDuration === 'unlimited') return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -76,7 +77,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 
   // Crane Pendulum Oscillation Loop
   useEffect(() => {
-    if (!isGameStarted || isGameOver || isFinishedRef.current) return;
+    if (!isGameStarted || isGameOver || isGameOverRef.current || isFinishedRef.current) return;
 
     const loop = () => {
       timeRef.current += 0.038;
@@ -97,12 +98,14 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   }, [isGameStarted, isGameOver]);
 
   const handleTimeExpired = () => {
-    if (isFinishedRef.current) return;
+    if (isFinishedRef.current || isGameOverRef.current) return;
+    isGameOverRef.current = true;
     setIsGameOver(true);
+
     playFanfareSound(soundEnabled);
     triggerVibration([30, 40, 30], vibrationEnabled);
     setFeedback('🕒 SÜRE DOLDU! GÖKDELEN TAMAMLANDI!');
-    setTimeout(() => finishGame(), 1600);
+    setTimeout(() => finishGame(), 1800);
   };
 
   const handleDropFloor = () => {
@@ -110,7 +113,8 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       setIsGameStarted(true);
       return;
     }
-    if (isGameOver || isFinishedRef.current) return;
+    // Block clicks if game is over or time expired
+    if (isGameOver || isGameOverRef.current || isFinishedRef.current) return;
 
     const topFloor = floors[floors.length - 1];
 
@@ -127,13 +131,14 @@ export const TowerGame: React.FC<TowerGameProps> = ({
     const overlapRight = Math.min(currentRight, topRight);
     const overlapWidth = overlapRight - overlapLeft;
 
-    // Total Miss Check
+    // Total Miss Check -> Skyscraper Collapse
     if (overlapWidth <= 4) {
+      isGameOverRef.current = true;
+      setIsGameOver(true);
       playBeepSound(200, 0.4, soundEnabled);
       triggerVibration(70, vibrationEnabled);
-      setIsGameOver(true);
       setFeedback('💥 GÖKDELEN YIKILDI!');
-      setTimeout(() => finishGame(), 1600);
+      setTimeout(() => finishGame(), 1800);
       return;
     }
 
@@ -187,11 +192,12 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       setTowerTilt(nextTilt);
 
       if (Math.abs(nextTilt) > 15) {
+        isGameOverRef.current = true;
+        setIsGameOver(true);
         playBeepSound(200, 0.4, soundEnabled);
         triggerVibration(70, vibrationEnabled);
-        setIsGameOver(true);
         setFeedback('⚖️ DENGE BOZULDU! GÖKDELEN YIKILDI!');
-        setTimeout(() => finishGame(), 1600);
+        setTimeout(() => finishGame(), 1800);
         return;
       }
 
@@ -202,8 +208,8 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 
     setFeedback(feedbackMsg);
 
-    // EXACT VISUAL POSITIONING: Dropped block lands EXACTLY where the crane was located!
-    const placedCenterX = isPerfect ? topFloor.centerX : (overlapLeft + overlapRight) / 2;
+    // EXACT 1-to-1 PLACEMENT: Placed block centerX remains at craneX (where released on right/left side!)
+    const placedCenterX = isPerfect ? topFloor.centerX : craneX;
 
     const newFloor: FloorBlock = {
       id: newFloorNumber,
