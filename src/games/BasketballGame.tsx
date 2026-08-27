@@ -29,9 +29,8 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     return initial;
   });
 
-  // Drag & Release Sling-Shot Physics State
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+  // Direct Precision Aim & Shot State
+  const [aimTarget, setAimTarget] = useState<{ x: number; y: number } | null>(null);
   const [isShooting, setIsShooting] = useState<boolean>(false);
 
   // Ball Flight State
@@ -57,18 +56,18 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     playerScoresRef.current = initial;
   }, [players]);
 
-  // Moving Hoop Animation Loop
+  // Gentle Moving Hoop Animation Loop
   useEffect(() => {
     if (isFinishedRef.current) return;
 
     const interval = setInterval(() => {
       setHoopOffsetX((prev) => {
-        let next = prev + hoopDirectionRef.current * 0.4;
-        if (next > 18) {
-          next = 18;
+        let next = prev + hoopDirectionRef.current * 0.35;
+        if (next > 16) {
+          next = 16;
           hoopDirectionRef.current = -1;
-        } else if (next < -18) {
-          next = -18;
+        } else if (next < -16) {
+          next = -16;
           hoopDirectionRef.current = 1;
         }
         return next;
@@ -80,64 +79,44 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
-  // Shot Type based on shot index (Moneyball on shot 3, Fireball on shot 5)
+  // Shot Type bonuses
   const isMoneyball = currentShot === 3;
   const isFireball = currentShot === 5 || streakCount >= 2;
 
-  // Extract pointer coordinates in normalized %
+  // Exact Normalized Pointer Coordinates (%)
   const getPointerPct = (e: React.PointerEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 50, y: 82 };
-    const xPct = Math.min(95, Math.max(5, ((e.clientX - rect.left) / rect.width) * 100));
-    const yPct = Math.min(95, Math.max(10, ((e.clientY - rect.top) / rect.height) * 100));
+    if (!rect) return { x: 50, y: 15.5 };
+    const xPct = Math.min(92, Math.max(8, ((e.clientX - rect.left) / rect.width) * 100));
+    const yPct = Math.min(65, Math.max(8, ((e.clientY - rect.top) / rect.height) * 100));
     return { x: xPct, y: yPct };
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isShooting || isFinishedRef.current) return;
     const pt = getPointerPct(e);
-    setDragStart(pt);
-    setDragCurrent(pt);
+    setAimTarget(pt);
     playTapSound(soundEnabled);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragStart || isShooting || isFinishedRef.current) return;
+    if (!aimTarget || isShooting || isFinishedRef.current) return;
     const pt = getPointerPct(e);
-    setDragCurrent(pt);
+    setAimTarget(pt);
   };
 
   const handlePointerUp = () => {
-    if (!dragStart || !dragCurrent || isShooting || isFinishedRef.current) {
-      setDragStart(null);
-      setDragCurrent(null);
+    if (!aimTarget || isShooting || isFinishedRef.current) {
+      setAimTarget(null);
       return;
     }
 
-    // Drag Vector (Drag Backwards -> Shoot Forwards)
-    const dx = dragStart.x - dragCurrent.x;
-    const dy = dragStart.y - dragCurrent.y;
-
-    // Minimum drag check
-    if (Math.hypot(dx, dy) < 3) {
-      setDragStart(null);
-      setDragCurrent(null);
-      return;
-    }
-
-    // Calculate Target Impact Point on Rim
-    const power = Math.min(45, Math.hypot(dx, dy) * 1.8);
-    const angle = Math.atan2(-dy, dx);
-
-    const targetX = Math.min(90, Math.max(10, 50 + Math.cos(angle) * power * 0.9));
-    const targetY = Math.min(60, Math.max(15, 26 - Math.sin(angle) * power * 0.4));
-
-    setDragStart(null);
-    setDragCurrent(null);
+    const finalTarget = { ...aimTarget };
+    setAimTarget(null);
     setIsShooting(true);
 
     // Launch Parabolic Flight Animation
-    launchParabolicShot(targetX, targetY);
+    launchParabolicShot(finalTarget.x, finalTarget.y);
   };
 
   const launchParabolicShot = (targetX: number, targetY: number) => {
@@ -146,7 +125,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     const apexY = Math.min(startY, targetY) - 22; // Parabolic arc apex height
 
     let progress = 0;
-    const durationFrames = 30; // 500ms at 60fps
+    const durationFrames = 28; // 460ms flight
 
     const animateFlight = () => {
       progress += 1 / durationFrames;
@@ -159,7 +138,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         return;
       }
 
-      // Quadratic Bezier Curve Math
+      // Quadratic Bezier Parabola Math
       const t = progress;
       const currentX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * targetX + t * t * targetX;
       const currentY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * apexY + t * t * targetY;
@@ -175,8 +154,9 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   };
 
   const evaluateShot = (targetX: number, targetY: number) => {
+    // Exact Rim Center Coordinates: (50 + hoopOffsetX, Y: 15.5%)
     const currentHoopX = 50 + hoopOffsetX;
-    const hoopY = 26;
+    const hoopY = 15.5;
     const distToHoop = Math.hypot(targetX - currentHoopX, targetY - hoopY);
 
     let pts = 0;
@@ -184,8 +164,8 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
 
     const basePoints = isFireball ? 6 : isMoneyball ? 4 : 2;
 
-    if (distToHoop <= 5.5) {
-      // Swish Basket!
+    if (distToHoop <= 6.5) {
+      // Swish Clean Basket!
       pts = basePoints + 1;
       setNetRipple(true);
       const nextStreak = streakCount + 1;
@@ -194,23 +174,29 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
       feedback = isFireball
         ? `☄️ ALEVLİ KUSURSUZ SWISH! (+${pts} PUAN)`
         : isMoneyball
-        ? `💎 MONEYBALL BASKET! (+${pts} PUAN)`
+        ? `💎 MONEYBALL SWISH! (+${pts} PUAN)`
         : `🏀 SWISH! TEMİZ BASKET! (+${pts} PUAN)`;
-    } else if (distToHoop <= 11.0) {
-      // Rim Basket!
+    } else if (distToHoop <= 14.0) {
+      // Direct Basket!
       pts = basePoints;
       setNetRipple(true);
       const nextStreak = streakCount + 1;
       setStreakCount(nextStreak);
 
       feedback = isMoneyball ? `💎 MONEYBALL BASKET! (+${pts} PUAN)` : `🏀 BASKET! (+${pts} PUAN)`;
-    } else if (distToHoop <= 16.5) {
-      feedback = '💥 PANYADAN SEKTİ!';
-      setStreakCount(0);
-      setBallPos((prev) => ({ x: prev.x > 50 ? prev.x + 6 : prev.x - 6, y: prev.y + 8 }));
+    } else if (distToHoop <= 20.0) {
+      // Rim Bounce Basket!
+      pts = basePoints;
+      setNetRipple(true);
+      const nextStreak = streakCount + 1;
+      setStreakCount(nextStreak);
+
+      feedback = '💥 PANYADAN SEKTİ VE GİRDİ! (+2 PUAN)';
     } else {
+      // Miss
       feedback = '❌ ISKALADI!';
       setStreakCount(0);
+      setBallPos((prev) => ({ x: prev.x > 50 ? prev.x + 6 : prev.x - 6, y: prev.y + 10 }));
     }
 
     if (pts > 0) {
@@ -278,14 +264,9 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
 
   // Trajectory Prediction Vector Math
   let trajectoryPath = '';
-  if (dragStart && dragCurrent) {
-    const dx = dragStart.x - dragCurrent.x;
-    const dy = dragStart.y - dragCurrent.y;
-    const power = Math.min(45, Math.hypot(dx, dy) * 1.8);
-    const angle = Math.atan2(-dy, dx);
-
-    const targetX = Math.min(90, Math.max(10, 50 + Math.cos(angle) * power * 0.9));
-    const targetY = Math.min(60, Math.max(15, 26 - Math.sin(angle) * power * 0.4));
+  if (aimTarget) {
+    const targetX = aimTarget.x;
+    const targetY = aimTarget.y;
     const apexY = Math.min(82, targetY) - 22;
 
     trajectoryPath = `M 50 82 Q ${(50 + targetX) / 2} ${apexY} ${targetX} ${targetY}`;
@@ -333,7 +314,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between cursor-grab active:cursor-grabbing"
+        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between cursor-crosshair"
         style={{
           background: 'linear-gradient(to bottom, #090D16 0%, #451A03 35%, #7C2D12 65%, #9A3412 100%)',
         }}
@@ -348,7 +329,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           ))}
         </div>
 
-        {/* Basketball Court Markings (Three Point Arc & Key Area) */}
+        {/* Basketball Court Markings */}
         <div className="absolute inset-x-[12%] top-[4%] h-[60%] border-2 border-white/35 rounded-b-full pointer-events-none z-0" />
         <div className="absolute inset-x-[32%] top-[4%] h-[28%] border-b-2 border-x-2 border-amber-400/40 pointer-events-none z-0" />
 
@@ -359,7 +340,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           </div>
         )}
 
-        {/* Dynamic Moving 3D Backboard & Rim SVG */}
+        {/* Dynamic Moving 3D Backboard & Rim SVG (Positioned at Y: 15.5%) */}
         <div
           style={{
             left: `${50 + hoopOffsetX}%`,
@@ -390,7 +371,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
             <rect x="80" y="54" width="80" height="55" rx="4" fill="none" stroke="#EF4444" strokeWidth="4" />
             <rect x="28" y="21" width="184" height="104" rx="8" fill="none" stroke="#DC2626" strokeWidth="2" opacity="0.8" />
 
-            {/* Metallic Rim & Animated Net Mesh */}
+            {/* Metallic Rim & Animated Net Mesh (Rim Center: cy=112 -> Y: 15.5%) */}
             <g className={netRipple ? 'animate-bounce' : ''}>
               <ellipse cx="120" cy="112" rx="28" ry="8" fill="none" stroke="#EA580C" strokeWidth="6" />
 
@@ -417,6 +398,22 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-30 overflow-visible">
             <path d={trajectoryPath} fill="none" stroke="#F59E0B" strokeWidth="4" strokeDasharray="8 6" className="animate-pulse" />
           </svg>
+        )}
+
+        {/* Target Aiming Reticle Marker */}
+        {aimTarget && (
+          <div
+            style={{
+              left: `${aimTarget.x}%`,
+              top: `${aimTarget.y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+            className="absolute z-50 pointer-events-none flex items-center justify-center"
+          >
+            <div className="w-10 h-10 rounded-full border-2 border-dashed border-amber-300 animate-spin-slow flex items-center justify-center">
+              <div className="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_12px_#F59E0B]" />
+            </div>
+          </div>
         )}
 
         {/* 3D Basketball Object */}
@@ -477,7 +474,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-amber-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-amber-300 font-black flex items-center justify-center gap-1.5">
-            🎯 Topu geriye doğru sürükleyip açısını ve gücünü ayarlayarak potaya fırlatın!
+            🎯 Ekrana dokunarak nişangahı potaya getirin ve parmağınızı bırakıp kusursuz basketler atın!
           </p>
         </div>
       </div>
