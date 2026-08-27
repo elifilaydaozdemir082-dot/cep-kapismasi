@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Sparkles, Trophy, Cloud, Star, Timer, Plus } from 'lucide-react';
+import { Building2, Sparkles, Trophy, Cloud, Star, Timer, Shield, Flame } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
 
@@ -13,9 +13,9 @@ interface TowerGameProps {
 
 interface FloorBlock {
   id: number;
-  width: number; // percentage width (40..70%)
-  x: number; // percentage position
-  tiltOffset: number; // offset from ideal center
+  width: number; // percentage width
+  centerX: number; // percentage center position
+  type: 'normal' | 'gold' | 'steel';
 }
 
 export const TowerGame: React.FC<TowerGameProps> = ({
@@ -26,18 +26,21 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 }) => {
   const INITIAL_WIDTH = 55;
 
+  // Selected Duration Options (30s, 60s, 90s, Infinity)
+  const [selectedDuration, setSelectedDuration] = useState<number | 'unlimited'>(60);
+  const [timeLeft, setTimeLeft] = useState<number | 'unlimited'>(60);
+  const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
+
   const [floors, setFloors] = useState<FloorBlock[]>([
-    { id: 1, width: INITIAL_WIDTH, x: 22.5, tiltOffset: 0 },
+    { id: 1, width: INITIAL_WIDTH, centerX: 50, type: 'normal' },
   ]);
 
-  // Game States & 60s Construction Rush Timer
-  const [craneX, setCraneX] = useState<number>(50);
+  // Crane & Physics State
+  const [craneX, setCraneX] = useState<number>(50); // Crane Hook Center X %
   const [towerTilt, setTowerTilt] = useState<number>(0);
   const [score, setScore] = useState<number>(1);
-  const [timeLeft, setTimeLeft] = useState<number>(60);
   const [perfectStreak, setPerfectStreak] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [timeBonusNotice, setTimeBonusNotice] = useState<string | null>(null);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   const animRef = useRef<number | null>(null);
@@ -47,32 +50,37 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   const perfectStreakRef = useRef<number>(0);
   const towerTiltRef = useRef<number>(0);
 
-  // 60-Second Countdown Timer Loop
+  // Sync Timer with Selected Duration
+  const handleSelectDuration = (dur: number | 'unlimited') => {
+    setSelectedDuration(dur);
+    setTimeLeft(dur);
+  };
+
+  // Countdown Timer Loop
   useEffect(() => {
-    if (isGameOver || isFinishedRef.current) return;
+    if (!isGameStarted || isGameOver || isFinishedRef.current || selectedDuration === 'unlimited') return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        if (typeof prev === 'number' && prev <= 1) {
           clearInterval(timer);
           handleTimeExpired();
           return 0;
         }
-        return prev - 1;
+        return typeof prev === 'number' ? prev - 1 : prev;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isGameOver]);
+  }, [isGameStarted, isGameOver, selectedDuration]);
 
   // Crane Pendulum Oscillation Loop
   useEffect(() => {
-    if (isGameOver || isFinishedRef.current) return;
+    if (!isGameStarted || isGameOver || isFinishedRef.current) return;
 
     const loop = () => {
-      timeRef.current += 0.04;
+      timeRef.current += 0.038;
 
-      // Dynamic oscillation speed for thrilling construction tempo
       const speed = 1.1 + Math.min(1.4, scoreRef.current * 0.05);
       const amp = 36 + Math.min(8, scoreRef.current * 0.4);
 
@@ -86,7 +94,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [isGameOver]);
+  }, [isGameStarted, isGameOver]);
 
   const handleTimeExpired = () => {
     if (isFinishedRef.current) return;
@@ -98,22 +106,29 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   };
 
   const handleDropFloor = () => {
+    if (!isGameStarted) {
+      setIsGameStarted(true);
+      return;
+    }
     if (isGameOver || isFinishedRef.current) return;
 
     const topFloor = floors[floors.length - 1];
 
+    // Standardized Center-Based Collision Math (Eliminates Right/Left Position Shift Bug!)
     const currentWidth = Math.max(40, topFloor.width);
-    const currentX = craneX - currentWidth / 2;
 
-    const currentEnd = currentX + currentWidth;
-    const topEnd = topFloor.x + topFloor.width;
+    const currentLeft = craneX - currentWidth / 2;
+    const currentRight = craneX + currentWidth / 2;
 
-    const overlapStart = Math.max(currentX, topFloor.x);
-    const overlapEnd = Math.min(currentEnd, topEnd);
-    const overlapWidth = overlapEnd - overlapStart;
+    const topLeft = topFloor.centerX - topFloor.width / 2;
+    const topRight = topFloor.centerX + topFloor.width / 2;
 
-    // Check complete miss -> Collapse!
-    if (overlapWidth <= 5) {
+    const overlapLeft = Math.max(currentLeft, topLeft);
+    const overlapRight = Math.min(currentRight, topRight);
+    const overlapWidth = overlapRight - overlapLeft;
+
+    // Total Miss Check
+    if (overlapWidth <= 4) {
       playBeepSound(200, 0.4, soundEnabled);
       triggerVibration(70, vibrationEnabled);
       setIsGameOver(true);
@@ -122,14 +137,30 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       return;
     }
 
-    const diffCenter = Math.abs(currentX - topFloor.x);
-    const isPerfect = diffCenter <= 3.8;
+    // Alignment difference between crane center and underlying block center
+    const diffCenter = Math.abs(craneX - topFloor.centerX);
+    const isPerfect = diffCenter <= 4.0;
 
     let nextTilt = towerTiltRef.current;
     let feedbackMsg = '';
-    let extraTimeSec = 0;
+    const newFloorNumber = floors.length + 1;
 
-    if (isPerfect) {
+    // Special Block Types: Gold floor every 5th, Steel floor every 8th
+    let blockType: 'normal' | 'gold' | 'steel' = 'normal';
+    if (newFloorNumber % 8 === 0) {
+      blockType = 'steel';
+    } else if (newFloorNumber % 5 === 0) {
+      blockType = 'gold';
+    }
+
+    // Steel Floor Power: Completely stabilizes tower tilt to 0 degrees!
+    if (blockType === 'steel') {
+      nextTilt = 0;
+      towerTiltRef.current = 0;
+      setTowerTilt(0);
+      feedbackMsg = '🛡️ ÇELİK DESTEK KAT! (DENGE SIFIRLANDI!)';
+      playFanfareSound(soundEnabled);
+    } else if (isPerfect) {
       const nextStreak = perfectStreakRef.current + 1;
       perfectStreakRef.current = nextStreak;
       setPerfectStreak(nextStreak);
@@ -138,22 +169,19 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       towerTiltRef.current = nextTilt;
       setTowerTilt(nextTilt);
 
-      // Time Extension Bonuses for Fast Accurate Drops
-      extraTimeSec = nextStreak >= 3 ? 5 : 3;
-      setTimeLeft((t) => Math.min(99, t + extraTimeSec));
-
       playFanfareSound(soundEnabled);
       triggerVibration([25, 35], vibrationEnabled);
 
-      feedbackMsg = nextStreak >= 2 ? `🔥 ${nextStreak}X MÜKEMMEL TEMPO!` : '✨ KUSURSUZ KAT!';
-
-      setTimeBonusNotice(`+${extraTimeSec}s SÜRE BONUSU!`);
-      setTimeout(() => setTimeBonusNotice(null), 1000);
+      if (blockType === 'gold') {
+        feedbackMsg = '💎 2X ALTIN KAT! (+2 KAT BONUSU)';
+      } else {
+        feedbackMsg = nextStreak >= 2 ? `🔥 ${nextStreak}X MÜKEMMEL HİZALAMA!` : '✨ KUSURSUZ KAT!';
+      }
     } else {
       perfectStreakRef.current = 0;
       setPerfectStreak(0);
 
-      const tiltDelta = (currentX - topFloor.x) * 0.35;
+      const tiltDelta = (craneX - topFloor.centerX) * 0.35;
       nextTilt = nextTilt + tiltDelta;
       towerTiltRef.current = nextTilt;
       setTowerTilt(nextTilt);
@@ -174,16 +202,21 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 
     setFeedback(feedbackMsg);
 
+    // EXACT VISUAL POSITIONING: Dropped block lands EXACTLY where the crane was located!
+    const placedCenterX = isPerfect ? topFloor.centerX : (overlapLeft + overlapRight) / 2;
+
     const newFloor: FloorBlock = {
-      id: floors.length + 1,
+      id: newFloorNumber,
       width: currentWidth,
-      x: isPerfect ? topFloor.x : overlapStart,
-      tiltOffset: currentX - topFloor.x,
+      centerX: placedCenterX,
+      type: blockType,
     };
 
     setFloors((prev) => [...prev.slice(-8), newFloor]);
+
+    const pointIncrease = blockType === 'gold' ? 2 : 1;
     setScore((s) => {
-      const next = s + 1;
+      const next = s + pointIncrease;
       scoreRef.current = next;
       return next;
     });
@@ -202,7 +235,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
         stats: {
           'Gökdelen Yüksekliği': `${scoreRef.current} Kat`,
           'Mükemmel Seri': `${perfectStreakRef.current}X`,
-          'Kalan Süre': `${timeLeft}s`,
+          'Seçilen Süre': typeof selectedDuration === 'number' ? `${selectedDuration}s` : 'Sınırsız',
         },
       },
     ]);
@@ -213,35 +246,56 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       onClick={handleDropFloor}
       className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none overflow-hidden touch-none p-3 space-y-2 cursor-pointer"
     >
-      {/* Header HUD Bar */}
-      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-xl backdrop-blur">
+      {/* Duration Selector Bar */}
+      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-2 shadow-xl backdrop-blur z-50">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-            <Building2 className="w-5 h-5" aria-hidden="true" />
+          <div className="p-1 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <Building2 className="w-4 h-4" />
           </div>
-          <span className="font-black text-sm tracking-wide text-white">GÖKDELEN İNŞAATI</span>
+          <span className="font-black text-xs tracking-wide text-white">GÖKDELEN İNŞAATI</span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-black">
-          {/* 60s Construction Timer Pill */}
-          <span
-            className={`px-3 py-1 rounded-full flex items-center gap-1 border transition-all ${
-              timeLeft <= 10
-                ? 'bg-rose-500/20 border-rose-500/40 text-rose-400 animate-pulse shadow-[0_0_12px_#EF4444]'
-                : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
-            }`}
-          >
-            <Timer className="w-3.5 h-3.5" /> Süre: {timeLeft}s
-          </span>
+        {/* Duration Toggles */}
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          {[30, 60, 90, 'unlimited'].map((dur) => (
+            <button
+              key={dur}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isGameStarted) handleSelectDuration(dur as number | 'unlimited');
+              }}
+              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black transition-all ${
+                selectedDuration === dur
+                  ? 'bg-cyan-500 text-slate-950 shadow-[0_0_10px_#06B6D4]'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {dur === 'unlimited' ? '∞' : `${dur}s`}
+            </button>
+          ))}
+        </div>
 
+        <div className="flex items-center gap-2 text-xs font-black">
           {perfectStreak >= 2 && (
-            <span className="text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" /> {perfectStreak}X
+            <span className="text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+              <Sparkles className="w-3 h-3" /> {perfectStreak}X
             </span>
           )}
 
-          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full flex items-center gap-1">
-            <Trophy className="w-3.5 h-3.5" /> {score} Kat
+          {selectedDuration !== 'unlimited' && (
+            <span
+              className={`px-2.5 py-0.5 rounded-full flex items-center gap-1 border transition-all ${
+                typeof timeLeft === 'number' && timeLeft <= 10
+                  ? 'bg-rose-500/20 border-rose-500/40 text-rose-400 animate-pulse'
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+              }`}
+            >
+              <Timer className="w-3 h-3" /> {timeLeft}s
+            </span>
+          )}
+
+          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <Trophy className="w-3 h-3" /> {score} Kat
           </span>
         </div>
       </div>
@@ -258,7 +312,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
               : 'linear-gradient(to bottom, #020617 0%, #0F172A 60%, #1E293B 100%)',
         }}
       >
-        {/* Background Clouds & Stars */}
+        {/* Background Clouds & Stars & Lightning */}
         <div className="absolute inset-0 pointer-events-none opacity-30">
           <Star className="absolute top-8 left-12 w-4 h-4 text-white animate-pulse" />
           <Star className="absolute top-16 right-16 w-3 h-3 text-amber-200 animate-pulse" />
@@ -273,15 +327,15 @@ export const TowerGame: React.FC<TowerGameProps> = ({
           </div>
         )}
 
-        {/* Time Extension Bonus Floating Notification */}
-        {timeBonusNotice && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-amber-500/90 border border-amber-300 px-4 py-1.5 rounded-full font-black text-xs text-slate-950 shadow-xl animate-bounce flex items-center gap-1">
-            <Plus className="w-3.5 h-3.5" /> {timeBonusNotice}
+        {/* Start Game Tap Notification */}
+        {!isGameStarted && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-cyan-500 text-slate-950 px-6 py-3 rounded-full font-black text-sm shadow-2xl animate-bounce">
+            🚀 BAŞLAMAK İÇİN EKRANA DOKUNUN!
           </div>
         )}
 
         {/* Swinging Crane Top Cable & Hook SVG */}
-        {!isGameOver && (
+        {!isGameOver && isGameStarted && (
           <div className="absolute top-0 inset-x-0 h-40 pointer-events-none z-30">
             <svg width="100%" height="100%" className="overflow-visible">
               <line x1="0" y1="12" x2="100%" y2="12" stroke="#F59E0B" strokeWidth="6" strokeDasharray="12 6" />
@@ -290,7 +344,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
               <circle cx={`${craneX}%`} cy="100" r="6" fill="none" stroke="#F59E0B" strokeWidth="3" />
             </svg>
 
-            {/* Swinging 3D Skyscraper Floor Block */}
+            {/* Swinging 3D Skyscraper Floor Block (Center Aligned EXACTLY to craneX%) */}
             <div
               style={{
                 left: `${craneX}%`,
@@ -298,7 +352,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
                 transform: 'translateX(-50%)',
                 top: '100px',
               }}
-              className="absolute h-10 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 border-2 border-white shadow-[0_0_20px_#38BDF8] flex items-center justify-around px-3 transition-transform"
+              className="absolute h-10 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 border-2 border-white shadow-[0_0_20px_#38BDF8] flex items-center justify-around px-3 transition-all"
             >
               <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
               <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
@@ -307,7 +361,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
           </div>
         )}
 
-        {/* Stacked Skyscraper Tower Container (With Dynamic Balance Tilt) */}
+        {/* Stacked Skyscraper Tower Container (Center Aligned EXACTLY to centerX%) */}
         <div
           style={{
             transform: `rotate(${towerTilt}deg)`,
@@ -319,17 +373,36 @@ export const TowerGame: React.FC<TowerGameProps> = ({
             <div
               key={floor.id}
               style={{
-                left: `${floor.x}%`,
+                left: `${floor.centerX}%`,
                 width: `${floor.width}%`,
+                transform: 'translateX(-50%)',
                 marginBottom: '4px',
               }}
-              className="relative h-10 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 border-2 border-cyan-500/60 shadow-xl flex items-center justify-around px-3 transition-all"
+              className={`relative h-10 rounded-xl border-2 shadow-xl flex items-center justify-around px-3 transition-all ${
+                floor.type === 'gold'
+                  ? 'bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 border-amber-200 shadow-[0_0_25px_#F59E0B]'
+                  : floor.type === 'steel'
+                  ? 'bg-gradient-to-r from-slate-400 via-gray-500 to-slate-600 border-slate-200 shadow-[0_0_25px_#94A3B8]'
+                  : 'bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 border-cyan-500/60'
+              }`}
             >
-              <div className={`w-3 h-4 rounded-sm ${idx % 2 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
-              <div className={`w-3 h-4 rounded-sm ${idx % 3 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
-              <div className={`w-3 h-4 rounded-sm ${idx % 2 === 1 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+              {floor.type === 'steel' ? (
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-950">
+                  <Shield className="w-4 h-4 fill-current" /> ÇELİK DESTEK KAT
+                </div>
+              ) : floor.type === 'gold' ? (
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-950">
+                  <Flame className="w-4 h-4 fill-current" /> 2X ALTIN KAT
+                </div>
+              ) : (
+                <>
+                  <div className={`w-3 h-4 rounded-sm ${idx % 2 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+                  <div className={`w-3 h-4 rounded-sm ${idx % 3 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+                  <div className={`w-3 h-4 rounded-sm ${idx % 2 === 1 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+                </>
+              )}
 
-              <span className="absolute right-2 bottom-0.5 text-[9px] font-black text-white/50">
+              <span className="absolute right-2 bottom-0.5 text-[9px] font-black text-white/60">
                 KAT {floor.id}
               </span>
             </div>
