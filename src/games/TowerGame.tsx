@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, Sparkles, Trophy } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
 
@@ -13,9 +13,18 @@ interface TowerGameProps {
 
 interface Block {
   id: number;
-  width: number; // percentage 10..100%
+  width: number; // percentage 35..100%
   x: number; // percentage position 0..100%
+  colorIdx: number;
 }
+
+const BLOCK_COLORS = [
+  'from-cyan-500 to-blue-600 border-cyan-300',
+  'from-emerald-500 to-teal-600 border-emerald-300',
+  'from-amber-500 to-orange-600 border-amber-300',
+  'from-rose-500 to-pink-600 border-rose-300',
+  'from-purple-500 to-indigo-600 border-purple-300',
+];
 
 export const TowerGame: React.FC<TowerGameProps> = ({
   players,
@@ -23,29 +32,36 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   soundEnabled,
   vibrationEnabled,
 }) => {
+  const INITIAL_WIDTH = 70;
+  const INITIAL_X = 15;
+
   const [blocks, setBlocks] = useState<Block[]>([
-    { id: 1, width: 70, x: 15 },
+    { id: 1, width: INITIAL_WIDTH, x: INITIAL_X, colorIdx: 0 },
   ]);
   const [movingBlock, setMovingBlock] = useState<{ width: number; x: number; direction: 1 | -1 }>({
-    width: 70,
+    width: INITIAL_WIDTH,
     x: 0,
     direction: 1,
   });
   const [score, setScore] = useState<number>(1);
+  const [perfectCombo, setPerfectCombo] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   const animRef = useRef<number | null>(null);
   const isFinishedRef = useRef<boolean>(false);
   const scoreRef = useRef<number>(1);
+  const perfectComboRef = useRef<number>(0);
 
-  // Moving Block Animation Loop
+  // Moving Block Animation Loop (Adjusts speed based on tower height)
   useEffect(() => {
     if (isGameOver || isFinishedRef.current) return;
 
     const loop = () => {
       setMovingBlock((prev) => {
-        let nextX = prev.x + prev.direction * 1.5;
+        // Speed increases gently with height
+        const moveSpeed = Math.min(2.8, 1.3 + Math.floor(scoreRef.current / 5) * 0.2);
+        let nextX = prev.x + prev.direction * moveSpeed;
         let nextDir = prev.direction;
 
         if (nextX >= 100 - prev.width) {
@@ -81,39 +97,66 @@ export const TowerGame: React.FC<TowerGameProps> = ({
     const overlapEnd = Math.min(movingEnd, lastEnd);
     const overlapWidth = overlapEnd - overlapStart;
 
+    // Strict check: if no overlap at all, tower collapses!
     if (overlapWidth <= 0) {
-      // Tower collapsed!
       playBeepSound(200, 0.4, soundEnabled);
       triggerVibration(60, vibrationEnabled);
       setIsGameOver(true);
-      setFeedback('KULE YIKILDI!');
+      setFeedback('❌ KULE YIKILDI!');
       setTimeout(() => finishGame(), 1500);
       return;
     }
 
-    // Check if placement was nearly perfect (<2% difference)
+    // Generous Perfect Alignment Check (Tolerance threshold: 3.8%)
     const diffCenter = Math.abs(movingBlock.x - lastBlock.x);
-    const isPerfect = diffCenter < 2.0;
+    const isPerfect = diffCenter <= 3.8;
+
+    let finalWidth = lastBlock.width;
+    let finalX = lastBlock.x;
+    let feedbackText = '';
 
     if (isPerfect) {
+      const nextCombo = perfectComboRef.current + 1;
+      perfectComboRef.current = nextCombo;
+      setPerfectCombo(nextCombo);
+
       playFanfareSound(soundEnabled);
-      triggerVibration([20, 30], vibrationEnabled);
-      setFeedback('✨ MÜKEMMEL HİZALAMA!');
+      triggerVibration([25, 35], vibrationEnabled);
+
+      // COMBO RECOVERY BONUS: Expands block width by +5% if combo >= 2!
+      if (nextCombo >= 2) {
+        finalWidth = Math.min(75, lastBlock.width + 5);
+        finalX = Math.max(5, lastBlock.x - 2.5);
+        feedbackText = `🔥 ${nextCombo}X PERFECT COMBO! (+KULE BÜYÜDÜ!)`;
+      } else {
+        finalWidth = lastBlock.width;
+        finalX = lastBlock.x;
+        feedbackText = '✨ MÜKEMMEL HİZALAMA!';
+      }
     } else {
+      perfectComboRef.current = 0;
+      setPerfectCombo(0);
+
       playBeepSound(600, 0.08, soundEnabled);
       triggerVibration(15, vibrationEnabled);
+
+      // MINIMUM WIDTH SAFETY FLOOR: Block width never shrinks below 35%!
+      finalWidth = Math.max(35, overlapWidth);
+      finalX = overlapStart;
+      feedbackText = '👍 İYİ HİZALAMA';
     }
 
-    const finalWidth = isPerfect ? lastBlock.width : overlapWidth;
-    const finalX = isPerfect ? lastBlock.x : overlapStart;
+    setFeedback(feedbackText);
 
     const newBlock: Block = {
       id: blocks.length + 1,
       width: finalWidth,
       x: finalX,
+      colorIdx: blocks.length % BLOCK_COLORS.length,
     };
 
-    setBlocks((prev) => [...prev.slice(-9), newBlock]);
+    // Keep visible block history for smooth stack rendering
+    setBlocks((prev) => [...prev.slice(-10), newBlock]);
     setScore((s) => {
       const next = s + 1;
       scoreRef.current = next;
@@ -126,7 +169,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       direction: 1,
     });
 
-    setTimeout(() => setFeedback(null), 1000);
+    setTimeout(() => setFeedback(null), 1100);
   };
 
   const finishGame = () => {
@@ -139,6 +182,7 @@ export const TowerGame: React.FC<TowerGameProps> = ({
         score: scoreRef.current,
         stats: {
           'Kule Yüksekliği': `${scoreRef.current} Kat`,
+          'En Yüksek Kombo': `${perfectComboRef.current}X`,
         },
       },
     ]);
@@ -152,18 +196,25 @@ export const TowerGame: React.FC<TowerGameProps> = ({
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 shadow-md">
         <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-cyan-400" aria-hidden="true" />
+          <Layers className="w-5 h-5 text-emerald-400" aria-hidden="true" />
           <span className="font-extrabold text-sm text-white">Denge Kulesi</span>
         </div>
 
-        <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
-          Kat: {score}
-        </span>
+        <div className="flex items-center gap-3 text-xs font-black">
+          {perfectCombo >= 2 && (
+            <span className="text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full flex items-center gap-1 animate-pulse">
+              <Sparkles className="w-3.5 h-3.5" /> {perfectCombo}X KOMBO
+            </span>
+          )}
+          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1 rounded-full flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5" /> Kat: {score}
+          </span>
+        </div>
       </div>
 
       {/* Feedback Banner */}
       {feedback && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-cyan-400 px-5 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-emerald-400 px-6 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
           {feedback}
         </div>
       )}
@@ -176,10 +227,12 @@ export const TowerGame: React.FC<TowerGameProps> = ({
             style={{
               left: `${movingBlock.x}%`,
               width: `${movingBlock.width}%`,
-              bottom: `${(blocks.length + 1) * 36}px`,
+              bottom: `${(blocks.length + 1) * 38}px`,
             }}
-            className="absolute h-8 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 border-2 border-white shadow-xl transition-all"
-          />
+            className="absolute h-9 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 border-2 border-white shadow-[0_0_20px_#10B981] transition-all z-30 flex items-center justify-center"
+          >
+            <div className="w-12 h-1.5 rounded-full bg-white/60" />
+          </div>
         )}
 
         {/* Stacked Tower Blocks */}
@@ -189,14 +242,18 @@ export const TowerGame: React.FC<TowerGameProps> = ({
             style={{
               left: `${block.x}%`,
               width: `${block.width}%`,
-              bottom: `${(idx + 1) * 36}px`,
+              bottom: `${(idx + 1) * 38}px`,
             }}
-            className="absolute h-8 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 border-2 border-indigo-300 shadow-lg transition-all"
-          />
+            className={`absolute h-9 rounded-2xl bg-gradient-to-r ${
+              BLOCK_COLORS[block.colorIdx]
+            } border-2 shadow-xl transition-all z-20 flex items-center justify-center`}
+          >
+            <div className="w-10 h-1.5 rounded-full bg-white/40" />
+          </div>
         ))}
 
         {/* Base Platform */}
-        <div className="w-full h-9 rounded-2xl bg-slate-950 border-2 border-slate-700 text-center text-xs font-black text-slate-300 flex items-center justify-center shadow-inner">
+        <div className="w-full h-10 rounded-2xl bg-slate-950 border-2 border-slate-700 text-center text-xs font-black text-emerald-400 flex items-center justify-center shadow-inner z-10">
           EKRANA DOKUNARAK BLOĞU TAM ZAMANINDA BIRAK!
         </div>
       </div>
