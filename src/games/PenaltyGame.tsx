@@ -116,10 +116,9 @@ export const PenaltyGame: React.FC<PenaltyGameProps> = ({
     // Transition to 'shooting' using ref-synced updater
     updateShotPhase('shooting');
 
-    // Calculate Target Coordinates from Drag Vector
-    const powerScale = Math.min(1.4, Math.max(0.6, Math.sqrt(dx * dx + dy * dy) / 100));
-    const targetX = Math.min(95, Math.max(5, 50 + (dx / 3)));
-    const targetY = Math.min(60, Math.max(8, 80 - (dy / 3) * powerScale));
+    // Calculate Target Coordinates from Drag Vector (Cleanly locked inside goal frame [24..76]% x [22..48]%)
+    const targetX = Math.min(76, Math.max(24, 50 + (dx / 4)));
+    const targetY = Math.min(48, Math.max(22, 42 - (dy / 6)));
 
     const ballTarget: Point2D = { x: targetX, y: targetY };
     previousShotsRef.current.push(ballTarget);

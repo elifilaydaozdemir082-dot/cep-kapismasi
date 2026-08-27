@@ -44,12 +44,12 @@ export const INITIAL_PENALTY_STATS: PenaltyStats = {
   score: 0,
 };
 
-// Goal Frame Boundaries in Normalized Pitch %
+// Official Goal Frame Boundaries in Normalized Pitch %
 export const GOAL_FRAME = {
   leftPostX: 20,
   rightPostX: 80,
   crossbarY: 18,
-  groundY: 52,
+  groundY: 58,
 };
 
 export function calculateKeeperTargetPosition(zone: KeeperDiveZone): Point2D {
@@ -75,7 +75,6 @@ export function selectKeeperDiveZone(
   const zones: KeeperDiveZone[] = ['left', 'top-left', 'center', 'right', 'top-right'];
 
   if (difficulty === 'hard' && previousShots.length >= 2) {
-    // Analyze if player tends to shoot left or right
     const avgX = previousShots.reduce((sum, p) => sum + p.x, 0) / previousShots.length;
     if (avgX < 45 && randomFn() < 0.6) {
       return randomFn() > 0.5 ? 'left' : 'top-left';
@@ -85,8 +84,7 @@ export function selectKeeperDiveZone(
     }
   }
 
-  // Balanced random dive
-  return zones[Math.floor(randomFn() * zones.length)];
+  return zones[Math.floor(randomFn() * randomFn().toString().length) % zones.length];
 }
 
 export function calculateShotOutcome(
@@ -98,11 +96,21 @@ export function calculateShotOutcome(
   const { leftPostX, rightPostX, crossbarY, groundY } = GOAL_FRAME;
 
   // 1. Check Out of Bounds (Missed)
-  if (y < crossbarY - 4 || y > groundY + 5 || x < leftPostX - 5 || x > rightPostX + 5) {
+  if (x < leftPostX - 5 || x > rightPostX + 5 || y < crossbarY - 5 || y > groundY + 8) {
     return 'missed';
   }
 
-  // 2. Check Post / Crossbar Hits
+  // 2. Check Goalkeeper Save First
+  const reachRadius = difficulty === 'easy' ? 12 : difficulty === 'normal' ? 14 : 16;
+  const dx = x - keeperPos.x;
+  const dy = y - keeperPos.y;
+  const distToGoalkeeper = Math.hypot(dx, dy);
+
+  if (distToGoalkeeper <= reachRadius) {
+    return 'saved';
+  }
+
+  // 3. Check Post / Crossbar Hit (Near X=20, X=80 or Y=18)
   const isNearLeftPost = Math.abs(x - leftPostX) <= 2.5 && y >= crossbarY && y <= groundY;
   const isNearRightPost = Math.abs(x - rightPostX) <= 2.5 && y >= crossbarY && y <= groundY;
   const isNearCrossbar = Math.abs(y - crossbarY) <= 2.5 && x >= leftPostX && x <= rightPostX;
@@ -111,23 +119,8 @@ export function calculateShotOutcome(
     return 'post';
   }
 
-  // 3. Check Goalkeeper Save
-  // Reach radius scaled by difficulty
-  const reachRadius = difficulty === 'easy' ? 14 : difficulty === 'normal' ? 17 : 20;
-  const dx = x - keeperPos.x;
-  const dy = y - keeperPos.y;
-  const distanceToGoalkeeper = Math.sqrt(dx * dx + dy * dy);
-
-  if (distanceToGoalkeeper <= reachRadius) {
-    return 'saved';
-  }
-
-  // 4. Goal Check (Ball completely inside goal frame)
-  if (x > leftPostX + 2 && x < rightPostX - 2 && y > crossbarY + 2 && y <= groundY) {
-    return 'goal';
-  }
-
-  return 'missed';
+  // 4. Goal Check (100% Goal inside goal frame)
+  return 'goal';
 }
 
 export function calculateShotScore(
@@ -140,8 +133,8 @@ export function calculateShotScore(
   }
 
   let points = 100; // Base goal points
-  const isCorner = ballTarget.x < 33 || ballTarget.x > 67;
-  const isTopCorner = isCorner && ballTarget.y < 30;
+  const isCorner = ballTarget.x < 32 || ballTarget.x > 68;
+  const isTopCorner = isCorner && ballTarget.y < 28;
 
   if (isTopCorner) {
     points += 75;
@@ -149,7 +142,6 @@ export function calculateShotScore(
     points += 50;
   }
 
-  // Streak bonus (3rd consecutive goal +100)
   if ((currentStreak + 1) % 3 === 0) {
     points += 100;
   }
@@ -158,22 +150,29 @@ export function calculateShotScore(
 }
 
 export function updatePenaltyStats(
-  prev: PenaltyStats,
+  currentStats: PenaltyStats,
   outcome: ShotOutcome,
-  pointsEarned: number
+  pointsAwarded: number
 ): PenaltyStats {
+  const nextShotsTaken = currentStats.shotsTaken + 1;
   const isGoal = outcome === 'goal';
-  const newStreak = isGoal ? prev.currentStreak + 1 : 0;
-  const newBestStreak = Math.max(prev.bestStreak, newStreak);
+  const nextGoals = currentStats.goals + (isGoal ? 1 : 0);
+  const nextSaves = currentStats.saves + (outcome === 'saved' ? 1 : 0);
+  const nextPosts = currentStats.posts + (outcome === 'post' ? 1 : 0);
+  const nextMisses = currentStats.misses + (outcome === 'missed' ? 1 : 0);
+
+  const nextStreak = isGoal ? currentStats.currentStreak + 1 : 0;
+  const nextBestStreak = Math.max(currentStats.bestStreak, nextStreak);
+  const nextScore = currentStats.score + pointsAwarded;
 
   return {
-    shotsTaken: prev.shotsTaken + 1,
-    goals: prev.goals + (isGoal ? 1 : 0),
-    saves: prev.saves + (outcome === 'saved' ? 1 : 0),
-    posts: prev.posts + (outcome === 'post' ? 1 : 0),
-    misses: prev.misses + (outcome === 'missed' ? 1 : 0),
-    currentStreak: newStreak,
-    bestStreak: newBestStreak,
-    score: prev.score + pointsEarned,
+    shotsTaken: nextShotsTaken,
+    goals: nextGoals,
+    saves: nextSaves,
+    posts: nextPosts,
+    misses: nextMisses,
+    currentStreak: nextStreak,
+    bestStreak: nextBestStreak,
+    score: nextScore,
   };
 }
