@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layers, Sparkles, Trophy } from 'lucide-react';
+import { Building2, Sparkles, Trophy, Cloud, Star } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
 
@@ -11,20 +11,12 @@ interface TowerGameProps {
   vibrationEnabled: boolean;
 }
 
-interface Block {
+interface FloorBlock {
   id: number;
-  width: number; // percentage 35..100%
-  x: number; // percentage position 0..100%
-  colorIdx: number;
+  width: number; // percentage width (40..70%)
+  x: number; // percentage position
+  tiltOffset: number; // offset from ideal center
 }
-
-const BLOCK_COLORS = [
-  'from-cyan-500 to-blue-600 border-cyan-300',
-  'from-emerald-500 to-teal-600 border-emerald-300',
-  'from-amber-500 to-orange-600 border-amber-300',
-  'from-rose-500 to-pink-600 border-rose-300',
-  'from-purple-500 to-indigo-600 border-purple-300',
-];
 
 export const TowerGame: React.FC<TowerGameProps> = ({
   players,
@@ -32,48 +24,41 @@ export const TowerGame: React.FC<TowerGameProps> = ({
   soundEnabled,
   vibrationEnabled,
 }) => {
-  const INITIAL_WIDTH = 70;
-  const INITIAL_X = 15;
+  const INITIAL_WIDTH = 55;
 
-  const [blocks, setBlocks] = useState<Block[]>([
-    { id: 1, width: INITIAL_WIDTH, x: INITIAL_X, colorIdx: 0 },
+  const [floors, setFloors] = useState<FloorBlock[]>([
+    { id: 1, width: INITIAL_WIDTH, x: 22.5, tiltOffset: 0 },
   ]);
-  const [movingBlock, setMovingBlock] = useState<{ width: number; x: number; direction: 1 | -1 }>({
-    width: INITIAL_WIDTH,
-    x: 0,
-    direction: 1,
-  });
+
+  // Crane Hook Pendulum Physics
+  const [craneX, setCraneX] = useState<number>(50);
+  const [towerTilt, setTowerTilt] = useState<number>(0); // Total tower tilt in degrees
   const [score, setScore] = useState<number>(1);
-  const [perfectCombo, setPerfectCombo] = useState<number>(0);
+  const [perfectStreak, setPerfectStreak] = useState<number>(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
 
   const animRef = useRef<number | null>(null);
+  const timeRef = useRef<number>(0);
   const isFinishedRef = useRef<boolean>(false);
   const scoreRef = useRef<number>(1);
-  const perfectComboRef = useRef<number>(0);
+  const perfectStreakRef = useRef<number>(0);
+  const towerTiltRef = useRef<number>(0);
 
-  // Moving Block Animation Loop (Adjusts speed based on tower height)
+  // Crane Pendulum Oscillation Loop
   useEffect(() => {
     if (isGameOver || isFinishedRef.current) return;
 
     const loop = () => {
-      setMovingBlock((prev) => {
-        // Speed increases gently with height
-        const moveSpeed = Math.min(2.8, 1.3 + Math.floor(scoreRef.current / 5) * 0.2);
-        let nextX = prev.x + prev.direction * moveSpeed;
-        let nextDir = prev.direction;
+      timeRef.current += 0.035;
 
-        if (nextX >= 100 - prev.width) {
-          nextX = 100 - prev.width;
-          nextDir = -1;
-        } else if (nextX <= 0) {
-          nextX = 0;
-          nextDir = 1;
-        }
+      // Oscillation speed and amplitude increase slightly with score
+      const speed = 1.0 + Math.min(1.2, scoreRef.current * 0.05);
+      const amp = 35 + Math.min(10, scoreRef.current * 0.5);
 
-        return { ...prev, x: nextX, direction: nextDir };
-      });
+      // Smooth sinusoidal pendulum sway
+      const newX = 50 + Math.sin(timeRef.current * speed) * amp;
+      setCraneX(newX);
 
       animRef.current = requestAnimationFrame(loop);
     };
@@ -84,92 +69,96 @@ export const TowerGame: React.FC<TowerGameProps> = ({
     };
   }, [isGameOver]);
 
-  const handlePlaceBlock = () => {
+  const handleDropFloor = () => {
     if (isGameOver || isFinishedRef.current) return;
 
-    const lastBlock = blocks[blocks.length - 1];
+    const topFloor = floors[floors.length - 1];
 
-    // Calculate exact overlapping interval [overlapStart, overlapEnd]
-    const movingEnd = movingBlock.x + movingBlock.width;
-    const lastEnd = lastBlock.x + lastBlock.width;
+    // Current swinging block position
+    const currentWidth = Math.max(40, topFloor.width);
+    const currentX = craneX - currentWidth / 2;
 
-    const overlapStart = Math.max(movingBlock.x, lastBlock.x);
-    const overlapEnd = Math.min(movingEnd, lastEnd);
+    // Overlap math
+    const currentEnd = currentX + currentWidth;
+    const topEnd = topFloor.x + topFloor.width;
+
+    const overlapStart = Math.max(currentX, topFloor.x);
+    const overlapEnd = Math.min(currentEnd, topEnd);
     const overlapWidth = overlapEnd - overlapStart;
 
-    // Strict check: if no overlap at all, tower collapses!
-    if (overlapWidth <= 0) {
+    // Check complete miss -> Skyscraper Collapse!
+    if (overlapWidth <= 5) {
       playBeepSound(200, 0.4, soundEnabled);
-      triggerVibration(60, vibrationEnabled);
+      triggerVibration(70, vibrationEnabled);
       setIsGameOver(true);
-      setFeedback('❌ KULE YIKILDI!');
-      setTimeout(() => finishGame(), 1500);
+      setFeedback('💥 GÖKDELEN YIKILDI!');
+      setTimeout(() => finishGame(), 1600);
       return;
     }
 
-    // Generous Perfect Alignment Check (Tolerance threshold: 3.8%)
-    const diffCenter = Math.abs(movingBlock.x - lastBlock.x);
-    const isPerfect = diffCenter <= 3.8;
+    // Alignment difference
+    const diffCenter = Math.abs(currentX - topFloor.x);
+    const isPerfect = diffCenter <= 3.5;
 
-    let finalWidth = lastBlock.width;
-    let finalX = lastBlock.x;
-    let feedbackText = '';
+    let nextTilt = towerTiltRef.current;
+    let feedbackMsg = '';
 
     if (isPerfect) {
-      const nextCombo = perfectComboRef.current + 1;
-      perfectComboRef.current = nextCombo;
-      setPerfectCombo(nextCombo);
+      const nextStreak = perfectStreakRef.current + 1;
+      perfectStreakRef.current = nextStreak;
+      setPerfectStreak(nextStreak);
+
+      // Perfect alignment reduces tower tilt & stabilizes building!
+      nextTilt = nextTilt * 0.5;
+      towerTiltRef.current = nextTilt;
+      setTowerTilt(nextTilt);
 
       playFanfareSound(soundEnabled);
       triggerVibration([25, 35], vibrationEnabled);
 
-      // COMBO RECOVERY BONUS: Expands block width by +5% if combo >= 2!
-      if (nextCombo >= 2) {
-        finalWidth = Math.min(75, lastBlock.width + 5);
-        finalX = Math.max(5, lastBlock.x - 2.5);
-        feedbackText = `🔥 ${nextCombo}X PERFECT COMBO! (+KULE BÜYÜDÜ!)`;
-      } else {
-        finalWidth = lastBlock.width;
-        finalX = lastBlock.x;
-        feedbackText = '✨ MÜKEMMEL HİZALAMA!';
-      }
+      feedbackMsg = nextStreak >= 2 ? `🔥 ${nextStreak}X MÜKEMMEL DENGELENDİ!` : '✨ KUSURSUZ KAT!';
     } else {
-      perfectComboRef.current = 0;
-      setPerfectCombo(0);
+      perfectStreakRef.current = 0;
+      setPerfectStreak(0);
 
-      playBeepSound(600, 0.08, soundEnabled);
+      // Misplacement adds tilt to total tower balance!
+      const tiltDelta = (currentX - topFloor.x) * 0.35;
+      nextTilt = nextTilt + tiltDelta;
+      towerTiltRef.current = nextTilt;
+      setTowerTilt(nextTilt);
+
+      // Check if tower tilt exceeds collapse threshold (>14 degrees)
+      if (Math.abs(nextTilt) > 14) {
+        playBeepSound(200, 0.4, soundEnabled);
+        triggerVibration(70, vibrationEnabled);
+        setIsGameOver(true);
+        setFeedback('⚖️ DENGE BOZULDU! GÖKDELEN YIKILDI!');
+        setTimeout(() => finishGame(), 1600);
+        return;
+      }
+
+      playBeepSound(650, 0.08, soundEnabled);
       triggerVibration(15, vibrationEnabled);
-
-      // MINIMUM WIDTH SAFETY FLOOR: Block width never shrinks below 35%!
-      finalWidth = Math.max(35, overlapWidth);
-      finalX = overlapStart;
-      feedbackText = '👍 İYİ HİZALAMA';
+      feedbackMsg = '👍 KAT YERLEŞTİ';
     }
 
-    setFeedback(feedbackText);
+    setFeedback(feedbackMsg);
 
-    const newBlock: Block = {
-      id: blocks.length + 1,
-      width: finalWidth,
-      x: finalX,
-      colorIdx: blocks.length % BLOCK_COLORS.length,
+    const newFloor: FloorBlock = {
+      id: floors.length + 1,
+      width: currentWidth,
+      x: isPerfect ? topFloor.x : overlapStart,
+      tiltOffset: currentX - topFloor.x,
     };
 
-    // Keep visible block history for smooth stack rendering
-    setBlocks((prev) => [...prev.slice(-10), newBlock]);
+    setFloors((prev) => [...prev.slice(-8), newFloor]);
     setScore((s) => {
       const next = s + 1;
       scoreRef.current = next;
       return next;
     });
 
-    setMovingBlock({
-      width: finalWidth,
-      x: 0,
-      direction: 1,
-    });
-
-    setTimeout(() => setFeedback(null), 1100);
+    setTimeout(() => setFeedback(null), 1200);
   };
 
   const finishGame = () => {
@@ -181,8 +170,8 @@ export const TowerGame: React.FC<TowerGameProps> = ({
         playerId: players[0].id,
         score: scoreRef.current,
         stats: {
-          'Kule Yüksekliği': `${scoreRef.current} Kat`,
-          'En Yüksek Kombo': `${perfectComboRef.current}X`,
+          'Gökdelen Yüksekliği': `${scoreRef.current} Kat`,
+          'Mükemmel Seri': `${perfectStreakRef.current}X`,
         },
       },
     ]);
@@ -190,71 +179,123 @@ export const TowerGame: React.FC<TowerGameProps> = ({
 
   return (
     <div
-      onClick={handlePlaceBlock}
+      onClick={handleDropFloor}
       className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none overflow-hidden touch-none p-3 space-y-2 cursor-pointer"
     >
-      {/* Header Bar */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 shadow-md">
+      {/* Header HUD */}
+      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-xl backdrop-blur">
         <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-emerald-400" aria-hidden="true" />
-          <span className="font-extrabold text-sm text-white">Denge Kulesi</span>
+          <div className="p-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <Building2 className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <span className="font-black text-sm tracking-wide text-white">GÖKDELEN İNŞAATI</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs font-black">
-          {perfectCombo >= 2 && (
-            <span className="text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full flex items-center gap-1 animate-pulse">
-              <Sparkles className="w-3.5 h-3.5" /> {perfectCombo}X KOMBO
+          {perfectStreak >= 2 && (
+            <span className="text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full flex items-center gap-1 animate-pulse shadow-[0_0_10px_#F59E0B]">
+              <Sparkles className="w-3.5 h-3.5" /> {perfectStreak}X KOMBO
             </span>
           )}
-          <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1 rounded-full flex items-center gap-1">
-            <Trophy className="w-3.5 h-3.5" /> Kat: {score}
+          <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3.5 py-1 rounded-full flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5" /> Yükseklik: {score} Kat
           </span>
         </div>
       </div>
 
-      {/* Feedback Banner */}
-      {feedback && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-emerald-400 px-6 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
-          {feedback}
+      {/* Main Construction Skyline Arena */}
+      <div
+        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-end p-4 transition-colors duration-1000"
+        style={{
+          background:
+            score > 15
+              ? 'linear-gradient(to bottom, #020617 0%, #0F172A 50%, #1E1B4B 100%)' // Space / Cloud Stratosphere
+              : score > 8
+              ? 'linear-gradient(to bottom, #0F172A 0%, #1E293B 60%, #312E81 100%)' // Evening Sky
+              : 'linear-gradient(to bottom, #020617 0%, #0F172A 60%, #1E293B 100%)', // Night City
+        }}
+      >
+        {/* Background Clouds & Stars */}
+        <div className="absolute inset-0 pointer-events-none opacity-30">
+          <Star className="absolute top-8 left-12 w-4 h-4 text-white animate-pulse" />
+          <Star className="absolute top-16 right-16 w-3 h-3 text-amber-200 animate-pulse" />
+          <Cloud className="absolute top-24 left-1/4 w-12 h-12 text-slate-400 opacity-40" />
+          <Cloud className="absolute top-36 right-1/4 w-16 h-16 text-slate-500 opacity-30" />
         </div>
-      )}
 
-      {/* Main Tower Stacking Arena */}
-      <div className="flex-1 relative bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950/40 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-end p-4">
-        {/* Moving Top Block */}
-        {!isGameOver && (
-          <div
-            style={{
-              left: `${movingBlock.x}%`,
-              width: `${movingBlock.width}%`,
-              bottom: `${(blocks.length + 1) * 38}px`,
-            }}
-            className="absolute h-9 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 border-2 border-white shadow-[0_0_20px_#10B981] transition-all z-30 flex items-center justify-center"
-          >
-            <div className="w-12 h-1.5 rounded-full bg-white/60" />
+        {/* Feedback Banner */}
+        {feedback && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-950/95 border-2 border-cyan-400 px-6 py-2.5 rounded-full font-black text-xs text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
+            {feedback}
           </div>
         )}
 
-        {/* Stacked Tower Blocks */}
-        {blocks.map((block, idx) => (
-          <div
-            key={block.id}
-            style={{
-              left: `${block.x}%`,
-              width: `${block.width}%`,
-              bottom: `${(idx + 1) * 38}px`,
-            }}
-            className={`absolute h-9 rounded-2xl bg-gradient-to-r ${
-              BLOCK_COLORS[block.colorIdx]
-            } border-2 shadow-xl transition-all z-20 flex items-center justify-center`}
-          >
-            <div className="w-10 h-1.5 rounded-full bg-white/40" />
-          </div>
-        ))}
+        {/* Swinging Crane Top Cable & Hook SVG */}
+        {!isGameOver && (
+          <div className="absolute top-0 inset-x-0 h-40 pointer-events-none z-30">
+            <svg width="100%" height="100%" className="overflow-visible">
+              {/* Crane Top Horizontal Arm */}
+              <line x1="0" y1="12" x2="100%" y2="12" stroke="#F59E0B" strokeWidth="6" strokeDasharray="12 6" />
+              {/* Crane Pulley Wheels */}
+              <circle cx={`${craneX}%`} cy="12" r="8" fill="#F59E0B" stroke="#0F172A" strokeWidth="2" />
+              {/* Steel Cable Line */}
+              <line x1={`${craneX}%`} y1="12" x2={`${craneX}%`} y2="100" stroke="#94A3B8" strokeWidth="3" />
+              {/* Crane Hook Ring */}
+              <circle cx={`${craneX}%`} cy="100" r="6" fill="none" stroke="#F59E0B" strokeWidth="3" />
+            </svg>
 
-        {/* Base Platform */}
-        <div className="w-full h-10 rounded-2xl bg-slate-950 border-2 border-slate-700 text-center text-xs font-black text-emerald-400 flex items-center justify-center shadow-inner z-10">
-          EKRANA DOKUNARAK BLOĞU TAM ZAMANINDA BIRAK!
+            {/* Swinging 3D Skyscraper Floor Block */}
+            <div
+              style={{
+                left: `${craneX}%`,
+                width: `${floors[floors.length - 1]?.width || INITIAL_WIDTH}%`,
+                transform: 'translateX(-50%)',
+                top: '100px',
+              }}
+              className="absolute h-10 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 border-2 border-white shadow-[0_0_20px_#38BDF8] flex items-center justify-around px-3 transition-transform"
+            >
+              {/* Windows Grid */}
+              <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
+              <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
+              <div className="w-3 h-4 bg-amber-300 rounded-sm shadow-[0_0_6px_#FDE047]" />
+            </div>
+          </div>
+        )}
+
+        {/* Stacked Skyscraper Tower Container (With Dynamic Balance Tilt) */}
+        <div
+          style={{
+            transform: `rotate(${towerTilt}deg)`,
+            transformOrigin: 'bottom center',
+          }}
+          className="relative w-full flex flex-col justify-end transition-transform duration-300 z-20"
+        >
+          {floors.map((floor, idx) => (
+            <div
+              key={floor.id}
+              style={{
+                left: `${floor.x}%`,
+                width: `${floor.width}%`,
+                marginBottom: '4px',
+              }}
+              className="relative h-10 rounded-xl bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 border-2 border-cyan-500/60 shadow-xl flex items-center justify-around px-3 transition-all"
+            >
+              {/* Lit Skyscraper Windows */}
+              <div className={`w-3 h-4 rounded-sm ${idx % 2 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+              <div className={`w-3 h-4 rounded-sm ${idx % 3 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+              <div className={`w-3 h-4 rounded-sm ${idx % 2 === 1 ? 'bg-amber-300 shadow-[0_0_6px_#FDE047]' : 'bg-cyan-300 shadow-[0_0_6px_#38BDF8]'}`} />
+
+              {/* Floor Level Label */}
+              <span className="absolute right-2 bottom-0.5 text-[9px] font-black text-white/50">
+                KAT {floor.id}
+              </span>
+            </div>
+          ))}
+
+          {/* City Skyline Foundation Base */}
+          <div className="w-full h-12 rounded-2xl bg-slate-950 border-2 border-slate-700 text-center text-xs font-black text-cyan-400 flex items-center justify-center shadow-2xl relative overflow-hidden z-10">
+            <span className="relative z-10">🏙️ GÖKDELEN TEMELİ (EKRANA DOKUNUP KATİ BIRAK!)</span>
+          </div>
         </div>
       </div>
     </div>
