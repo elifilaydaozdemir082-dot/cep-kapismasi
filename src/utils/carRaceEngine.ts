@@ -16,7 +16,7 @@ export interface RaceObstacle {
   id: number;
   lane: number; // 0, 1, 2, 3
   widthLanes: number; // 1 or 2
-  y: number; // 0..100%
+  y: number; // 0..120%
   type: ObstacleType;
   color: string;
   speedMultiplier: number; // relative to traffic
@@ -41,42 +41,42 @@ export interface RaceCoin {
 }
 
 export interface DifficultyConfig {
-  baseSpeed: number; // speed factor
+  baseSpeed: number;
   maxSpeed: number;
   spawnIntervalMs: number;
-  minGapY: number; // minimum Y distance between obstacles
-  trafficSwerveChance: number;
   powerupChance: number;
+  trafficSwerveChance: number;
+  minGapY: number;
   warmupSeconds: number;
 }
 
 export const DIFFICULTY_CONFIGS: Record<RaceDifficulty, DifficultyConfig> = {
   easy: {
-    baseSpeed: 0.32,
-    maxSpeed: 0.55,
-    spawnIntervalMs: 1400,
-    minGapY: 35,
-    trafficSwerveChance: 0.05,
-    powerupChance: 0.015,
-    warmupSeconds: 10,
+    baseSpeed: 0.85,
+    maxSpeed: 1.4,
+    spawnIntervalMs: 2200,
+    powerupChance: 0.35,
+    trafficSwerveChance: 0.1,
+    minGapY: 30,
+    warmupSeconds: 4,
   },
   normal: {
-    baseSpeed: 0.45,
-    maxSpeed: 0.75,
-    spawnIntervalMs: 1100,
-    minGapY: 28,
-    trafficSwerveChance: 0.12,
-    powerupChance: 0.01,
-    warmupSeconds: 8,
+    baseSpeed: 1.1,
+    maxSpeed: 1.8,
+    spawnIntervalMs: 1600,
+    powerupChance: 0.25,
+    trafficSwerveChance: 0.25,
+    minGapY: 26,
+    warmupSeconds: 3,
   },
   hard: {
-    baseSpeed: 0.6,
-    maxSpeed: 0.95,
-    spawnIntervalMs: 800,
+    baseSpeed: 1.4,
+    maxSpeed: 2.3,
+    spawnIntervalMs: 1100,
+    powerupChance: 0.18,
+    trafficSwerveChance: 0.45,
     minGapY: 22,
-    trafficSwerveChance: 0.25,
-    powerupChance: 0.008,
-    warmupSeconds: 5,
+    warmupSeconds: 2,
   },
 };
 
@@ -137,7 +137,6 @@ export function validateAndGenerateObstacle(params: SpawnCheckParams): RaceObsta
 
   // Filter out lanes that would completely block ALL 4 lanes at top (y < 40)
   const validLanes = candidateLanes.filter((lane) => {
-    // Check if spawning obstacle at (lane, widthLanes) leaves at least 1 open lane among existing top obstacles
     const occupiedLanes = new Set<number>();
     existingObstacles.forEach((obs) => {
       if (obs.y < 40) {
@@ -149,7 +148,6 @@ export function validateAndGenerateObstacle(params: SpawnCheckParams): RaceObsta
     for (let i = 0; i < widthLanes; i++) {
       occupiedLanes.add(lane + i);
     }
-    // If occupiedLanes covers all 4 lanes, this lane is invalid!
     return occupiedLanes.size < 4;
   });
 
@@ -166,7 +164,7 @@ export function validateAndGenerateObstacle(params: SpawnCheckParams): RaceObsta
     id: randomFn(),
     lane: selectedLane,
     widthLanes,
-    y: -15,
+    y: -18,
     type,
     color,
     speedMultiplier: type === 'car' || type === 'swerving-car' ? 0.3 : 0,
@@ -206,25 +204,23 @@ export function validateAndGeneratePowerup(
   return {
     id: randomFn(),
     lane,
-    y: -10,
+    y: -15,
     type,
   };
 }
 
 export function checkNearMiss(
   playerLane: number,
-  playerY: number, // percentage, e.g. 78%
+  playerY: number, // percentage, e.g. 80%
   obstacle: RaceObstacle
 ): boolean {
   if (obstacle.hasBeenNearMissed) return false;
 
-  // Player bounds: lane, Y range [playerY - 4, playerY + 8]
-  // Obstacle bounds: lane .. lane + widthLanes - 1, Y range [obs.y - 4, obs.y + 8]
-
-  const isYOverlapping = obstacle.y >= playerY - 12 && obstacle.y <= playerY + 12;
+  // Precise Near Miss bounds check: adjacent lane, Y range [playerY - 5, playerY + 5]
+  const isYOverlapping = obstacle.y >= playerY - 5 && obstacle.y <= playerY + 5;
   if (!isYOverlapping) return false;
 
-  // Check lane proximity: adjacent lane (diff is 1)
+  // Check lane proximity: adjacent lane
   const isAdjacentLane =
     (playerLane === obstacle.lane - 1 && obstacle.lane > 0) ||
     (playerLane === obstacle.lane + obstacle.widthLanes);
@@ -237,7 +233,8 @@ export function checkCollision(
   playerY: number,
   obstacle: RaceObstacle
 ): boolean {
-  const isYOverlapping = obstacle.y >= playerY - 8 && obstacle.y <= playerY + 8;
+  // Precision Hitbox Check: Trigger ONLY when obstacle touches player bounds [playerY - 4.5, playerY + 4.5]
+  const isYOverlapping = obstacle.y >= playerY - 4.5 && obstacle.y <= playerY + 4.5;
   if (!isYOverlapping) return false;
 
   // Check lane overlap
@@ -252,6 +249,6 @@ export function calculateInGameSpeedKmh(
   speedFactor: number,
   elapsedSeconds: number
 ): number {
-  const speedScale = 80 + baseSpeed * 100 + elapsedSeconds * 0.8;
+  const speedScale = 90 + baseSpeed * 110 + elapsedSeconds * 1.2;
   return Math.round(speedScale * speedFactor);
 }

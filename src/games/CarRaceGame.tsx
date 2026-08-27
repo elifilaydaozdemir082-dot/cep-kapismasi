@@ -306,7 +306,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
             handleNearMiss();
           }
 
-          if (newY < 110) {
+          if (newY < 125) {
             updated.push({
               ...obs,
               y: newY,

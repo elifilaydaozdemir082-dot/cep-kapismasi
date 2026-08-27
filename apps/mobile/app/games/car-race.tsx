@@ -80,18 +80,18 @@ export default function MobileCarRaceScreen() {
           const nextY = obs.y + speed * delta * 0.45;
 
           // Check Collision with Player Car (Player is at y = 78%)
-          if (nextY >= 70 && nextY <= 86 && obs.lane === playerLaneRef.current) {
+          if (nextY >= 75.5 && nextY <= 82.5 && obs.lane === playerLaneRef.current) {
             // Collision hit!
             handleCollision();
             continue; // Destroy obstacle after hit
           }
 
           // Near Miss Bonus
-          if (nextY >= 78 && nextY <= 82 && Math.abs(obs.lane - playerLaneRef.current) === 1) {
+          if (nextY >= 75 && nextY <= 83 && Math.abs(obs.lane - playerLaneRef.current) === 1) {
             setScore((s) => s + 25);
           }
 
-          if (nextY <= 105) {
+          if (nextY <= 125) {
             nextObstacles.push({ ...obs, y: nextY });
           }
         }
