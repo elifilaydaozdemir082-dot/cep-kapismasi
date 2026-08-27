@@ -29,8 +29,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     return initial;
   });
 
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
-  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [aimTarget, setAimTarget] = useState<{ x: number; y: number } | null>(null);
   const [ballPos, setBallPos] = useState<{ x: number; y: number }>({ x: 50, y: 80 });
   const [ballScale, setBallScale] = useState<number>(1);
   const [ballRotation, setBallRotation] = useState<number>(0);
@@ -50,61 +49,44 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
+  // Helper to extract normalized percentage coordinates from pointer events
+  const getPointerCoords = (e: React.PointerEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 50, y: 28 };
+    const xPct = Math.min(95, Math.max(5, ((e.clientX - rect.left) / rect.width) * 100));
+    const yPct = Math.min(85, Math.max(10, ((e.clientY - rect.top) / rect.height) * 100));
+    return { x: xPct, y: yPct };
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isShooting || isFinishedRef.current) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setDragStart({ x, y });
-    setDragCurrent({ x, y });
+    const coords = getPointerCoords(e);
+    setAimTarget(coords);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragStart || isShooting || isFinishedRef.current) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setDragCurrent({ x, y });
+    if (!aimTarget || isShooting || isFinishedRef.current) return;
+    const coords = getPointerCoords(e);
+    setAimTarget(coords);
   };
 
   const handlePointerUp = () => {
-    if (!dragStart || !dragCurrent || isShooting || isFinishedRef.current) {
-      setDragStart(null);
-      setDragCurrent(null);
+    if (!aimTarget || isShooting || isFinishedRef.current) {
+      setAimTarget(null);
       return;
     }
 
-    // Direct Non-inverted Drag Vector:
-    // Swiping right (dragCurrent.x > dragStart.x) produces positive dx -> Moves right!
-    // Swiping up (dragStart.y > dragCurrent.y) produces positive dy -> Launches ball to hoop!
-    const dx = dragCurrent.x - dragStart.x;
-    const dy = dragStart.y - dragCurrent.y;
-
-    setDragStart(null);
-    setDragCurrent(null);
-
-    // Minimum drag threshold (25px)
-    if (Math.hypot(dx, dy) < 25) return;
-
+    const finalTarget = { ...aimTarget };
+    setAimTarget(null);
     setIsShooting(true);
 
-    const rect = containerRef.current?.getBoundingClientRect();
-    const containerWidth = rect ? rect.width : 360;
-    const containerHeight = rect ? rect.height : 500;
-
-    // Target position percentages (Target Y mapped smoothly to hoop center at Y: 28%)
-    const targetX = Math.min(92, Math.max(8, 50 + (dx / containerWidth) * 110));
-    const targetY = Math.min(68, Math.max(10, 80 - (dy / containerHeight) * 215));
-
-    // Animate ball arc towards target
+    // Animate ball arc towards tapped target
     setBallRotation(720);
     setBallScale(0.65);
-    setBallPos({ x: targetX, y: targetY });
+    setBallPos({ x: finalTarget.x, y: finalTarget.y });
 
     setTimeout(() => {
-      evaluateShot(targetX, targetY);
+      evaluateShot(finalTarget.x, finalTarget.y);
     }, 550);
   };
 
@@ -117,11 +99,11 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     let pts = 0;
     let feedback = '';
 
-    if (distToHoop <= 6.5) {
+    if (distToHoop <= 5.5) {
       pts = 3;
       feedback = '🔥 SWISH! TEMİZ BASKET! (+3 PUAN)';
       setNetRipple(true);
-    } else if (distToHoop <= 11.5) {
+    } else if (distToHoop <= 10.5) {
       pts = 2;
       feedback = '🏀 BASKET! (+2 PUAN)';
       setNetRipple(true);
@@ -225,7 +207,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between"
+        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between cursor-crosshair"
         style={{
           background: 'linear-gradient(to bottom, #090D16 0%, #451A03 35%, #7C2D12 65%, #9A3412 100%)',
         }}
@@ -271,7 +253,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
             {/* Red LED Boundary Frame */}
             <rect x="28" y="17" width="184" height="104" rx="8" fill="none" stroke="#DC2626" strokeWidth="2" opacity="0.8" />
 
-            {/* Metallic Rim & Net Swish (Rim Center at cy=112 => Y: 28%) */}
+            {/* Metallic Rim & Net Swish */}
             <g className={netRipple ? 'animate-bounce' : ''}>
               {/* Orange Metallic Rim */}
               <ellipse cx="120" cy="112" rx="28" ry="8" fill="none" stroke="#EA580C" strokeWidth="6" />
@@ -294,20 +276,12 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           </svg>
         </div>
 
-        {/* Dotted Aim Trajectory Line */}
-        {dragStart && dragCurrent && (
+        {/* Green Aiming Target Marker & Arc Line */}
+        {aimTarget && (
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-30">
-            <line
-              x1={dragStart.x}
-              y1={dragStart.y}
-              x2={dragCurrent.x}
-              y2={dragCurrent.y}
-              stroke="#F59E0B"
-              strokeWidth="5"
-              strokeDasharray="8 8"
-              strokeLinecap="round"
-            />
-            <circle cx={dragCurrent.x} cy={dragCurrent.y} r="10" fill="#F59E0B" opacity="0.9" />
+            {/* Target Crosshair Circle */}
+            <circle cx={`${aimTarget.x}%`} cy={`${aimTarget.y}%`} r="18" fill="none" stroke="#34D399" strokeWidth="3" strokeDasharray="4 4" className="animate-spin-slow" />
+            <circle cx={`${aimTarget.x}%`} cy={`${aimTarget.y}%`} r="6" fill="#34D399" />
           </svg>
         )}
 
@@ -343,7 +317,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-amber-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-amber-300 font-black flex items-center justify-center gap-1.5">
-            <ArrowUpRight className="w-4 h-4 text-amber-400" /> Topa dokunup potaya doğru nişan alıp fırlatın!
+            <ArrowUpRight className="w-4 h-4 text-amber-400" /> Potaya dokunup şutunuzu çekin!
           </p>
         </div>
       </div>
