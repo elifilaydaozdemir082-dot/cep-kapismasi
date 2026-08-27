@@ -31,10 +31,11 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     x: 50,
     y: 50,
     vx: 0.3,
-    vy: 0.6,
+    vy: 0.5,
   });
 
   const [impactSpark, setImpactSpark] = useState<{ x: number; y: number } | null>(null);
+  const [goalAnnouncement, setGoalAnnouncement] = useState<string | null>(null);
 
   const isFinishedRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +45,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     p1PaddleRef.current = p1Paddle;
   }, [p1Paddle]);
 
-  // 60FPS Game Physics Loop with Exact Circle Positional Correction
+  // 60FPS Game Physics Loop with Balanced Slower Bot & Rocket Player Hits
   useEffect(() => {
     if (isFinishedRef.current) return;
 
@@ -59,22 +60,22 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       const arenaW = rect ? rect.width : 360;
       const arenaH = rect ? rect.height : 520;
 
-      // 1. Intelligent AI Bot Logic (Single Player Mode - Yellow Bot)
+      // 1. Gentle & Easy Yellow AI Bot Logic (Single Player Mode)
       if (mode === 'single') {
         setP2Paddle((prev) => {
-          // AI Bot tracks puck aggressively when in top half (y < 52%)
+          // Yellow Bot tracks puck smoothly at a slower, relaxed pace
           const targetX = puck.x;
-          const targetY = puck.y < 52 ? Math.min(38, Math.max(12, puck.y - 3)) : 18;
+          const targetY = puck.y < 50 ? Math.min(32, Math.max(14, puck.y - 4)) : 18;
 
           const dx = targetX - prev.x;
           const dy = targetY - prev.y;
 
-          // Smooth tracking speed
-          const speedX = 0.32;
-          const speedY = 0.28;
+          // Slower Bot Speed for Easy Player Mastery
+          const speedX = 0.10;
+          const speedY = 0.08;
 
-          const newX = Math.min(Math.max(prev.x + dx * speedX, 12), 88);
-          const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 42);
+          const newX = Math.min(Math.max(prev.x + dx * speedX, 15), 85);
+          const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 38);
 
           return { x: newX, y: newY };
         });
@@ -82,8 +83,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
       // 2. Puck Motion & Positional Correction Physics
       setPuck((prev) => {
-        let newX = prev.x + prev.vx * delta * 70;
-        let newY = prev.y + prev.vy * delta * 70;
+        let newX = prev.x + prev.vx * delta * 75;
+        let newY = prev.y + prev.vy * delta * 75;
         let vx = prev.vx;
         let vy = prev.vy;
 
@@ -98,22 +99,22 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           playBeepSound(300, 0.05, soundEnabled);
         }
 
-        // Check Goal Mouths (Top & Bottom goal mouth width 30% to 70%)
+        // Check Goal Mouths (Top & Bottom goal mouth width 28% to 72%)
         if (newY <= 3) {
-          if (newX >= 30 && newX <= 70) {
-            // Player 1 Goal!
+          if (newX >= 28 && newX <= 72) {
+            // Player 1 Goal! (Ball entered Top Goal)
             handleGoal('P1');
-            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.6, vy: 0.6 };
+            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: 0.5 };
           } else {
             vy = Math.abs(vy) * 0.95;
             newY = 3;
             playBeepSound(300, 0.05, soundEnabled);
           }
         } else if (newY >= 97) {
-          if (newX >= 30 && newX <= 70) {
-            // Player 2 Goal!
+          if (newX >= 28 && newX <= 72) {
+            // Player 2 Goal! (Ball entered Bottom Goal)
             handleGoal('P2');
-            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.6, vy: -0.6 };
+            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: -0.5 };
           } else {
             vy = -Math.abs(vy) * 0.95;
             newY = 97;
@@ -129,24 +130,23 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         const puckRadiusPx = 16;
         const combinedRadius = paddleRadiusPx + puckRadiusPx;
 
-        // Paddle Collision - P1 Paddle (Cyan / Bottom)
+        // Paddle Collision - P1 Player Paddle (Cyan / Bottom)
         const p1PxX = (p1PaddleRef.current.x / 100) * arenaW;
         const p1PxY = (p1PaddleRef.current.y / 100) * arenaH;
         const distP1Px = Math.hypot(puckPxX - p1PxX, puckPxY - p1PxY);
 
         if (distP1Px <= combinedRadius && distP1Px > 0) {
-          // Normal collision vector
           const normalX = (puckPxX - p1PxX) / distP1Px;
           const normalY = (puckPxY - p1PxY) / distP1Px;
 
-          // Positional Correction: Push puck OUT of paddle boundary immediately
+          // Positional Correction
           const overlap = combinedRadius - distP1Px + 2;
           newX += (normalX * overlap / arenaW) * 100;
           newY += (normalY * overlap / arenaH) * 100;
 
-          // Velocity Response: Rocket puck UPWARDS into P2 half!
-          vy = -Math.max(0.7, Math.abs(vy) * 1.2);
-          vx = normalX * 0.8;
+          // ROCKET UPWARD PROPULSION: Drives puck forcefully all the way into P2's top half!
+          vy = -1.1 - Math.abs(vy) * 0.2;
+          vx = normalX * 0.9;
 
           setImpactSpark({ x: newX, y: newY });
           setTimeout(() => setImpactSpark(null), 250);
@@ -155,24 +155,23 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           triggerVibration(20, vibrationEnabled);
         }
 
-        // Paddle Collision - P2 Paddle (Yellow Bot / Top)
+        // Paddle Collision - P2 Yellow Bot Paddle (Top)
         const p2PxX = (p2Paddle.x / 100) * arenaW;
         const p2PxY = (p2Paddle.y / 100) * arenaH;
         const distP2Px = Math.hypot(puckPxX - p2PxX, puckPxY - p2PxY);
 
         if (distP2Px <= combinedRadius && distP2Px > 0) {
-          // Normal collision vector
           const normalX = (puckPxX - p2PxX) / distP2Px;
           const normalY = (puckPxY - p2PxY) / distP2Px;
 
-          // Positional Correction: Push puck OUT of bot paddle boundary immediately
+          // Positional Correction
           const overlap = combinedRadius - distP2Px + 2;
           newX += (normalX * overlap / arenaW) * 100;
           newY += (normalY * overlap / arenaH) * 100;
 
-          // Velocity Response: Rocket puck DOWNWARDS into P1 half!
-          vy = Math.max(0.7, Math.abs(vy) * 1.2);
-          vx = normalX * 0.8;
+          // Moderate downward bounce
+          vy = 0.7 + Math.abs(vy) * 0.15;
+          vx = normalX * 0.7;
 
           setImpactSpark({ x: newX, y: newY });
           setTimeout(() => setImpactSpark(null), 250);
@@ -194,7 +193,11 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const handleGoal = (scorer: 'P1' | 'P2') => {
     if (isFinishedRef.current) return;
     playFanfareSound(soundEnabled);
-    triggerVibration([20, 30, 20], vibrationEnabled);
+    triggerVibration([25, 35, 25], vibrationEnabled);
+
+    const scorerName = scorer === 'P1' ? players[0]?.name : (mode === 'single' ? 'BOT RAKİP' : players[1]?.name);
+    setGoalAnnouncement(`⚽ GOOOL! ${scorerName.toUpperCase()}`);
+    setTimeout(() => setGoalAnnouncement(null), 1400);
 
     if (scorer === 'P1') {
       const next = p1ScoreRef.current + 1;
@@ -219,12 +222,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     onFinishGame(results);
   };
 
-  // Pointer drag for P1 paddle (Bottom half)
+  // High-Precision Pointer drag for P1 paddle (Full bottom half control)
   const handleP1Pointer = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!containerRef.current || isFinishedRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 8), 92);
-    const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 52), 92);
+    const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 5), 95);
+    const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 48), 95);
     setP1Paddle({ x, y });
   };
 
@@ -232,8 +235,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
   const handleP2Pointer = (e: React.PointerEvent<HTMLDivElement>) => {
     if (mode !== 'multi' || !containerRef.current || isFinishedRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 8), 92);
-    const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 8), 48);
+    const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 5), 95);
+    const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 5), 48);
     setP2Paddle({ x, y });
   };
 
@@ -260,16 +263,23 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         ref={containerRef}
         onPointerMove={handleP1Pointer}
         onPointerDown={handleP1Pointer}
-        className="flex-1 relative bg-slate-900 border-4 border-cyan-500/50 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.25)] flex flex-col justify-between"
+        className="flex-1 relative bg-slate-900 border-4 border-cyan-500/50 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.25)] flex flex-col justify-between cursor-crosshair"
       >
+        {/* Goal Announcement Banner */}
+        {goalAnnouncement && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-slate-950/95 border-2 border-amber-400 px-6 py-3 rounded-full font-black text-sm text-amber-300 shadow-2xl animate-scale-up backdrop-blur">
+            {goalAnnouncement}
+          </div>
+        )}
+
         {/* Top Goal Mouth (P2 / Bot Goal) */}
-        <div className="absolute top-0 inset-x-[30%] h-3 bg-rose-500/80 border-b-2 border-rose-400 rounded-b-lg flex items-center justify-center z-10">
-          <span className="text-[9px] font-black text-white tracking-widest uppercase">KALE 2</span>
+        <div className="absolute top-0 inset-x-[28%] h-3.5 bg-emerald-500/80 border-b-2 border-emerald-400 rounded-b-lg flex items-center justify-center z-10">
+          <span className="text-[9px] font-black text-white tracking-widest uppercase">BOT KALESİ</span>
         </div>
 
         {/* Bottom Goal Mouth (P1 Goal) */}
-        <div className="absolute bottom-0 inset-x-[30%] h-3 bg-rose-500/80 border-t-2 border-rose-400 rounded-t-lg flex items-center justify-center z-10">
-          <span className="text-[9px] font-black text-white tracking-widest uppercase">KALE 1</span>
+        <div className="absolute bottom-0 inset-x-[28%] h-3.5 bg-cyan-500/80 border-t-2 border-cyan-400 rounded-t-lg flex items-center justify-center z-10">
+          <span className="text-[9px] font-black text-white tracking-widest uppercase">SENİN KALEN</span>
         </div>
 
         {/* Center Line & Circle */}
