@@ -76,9 +76,9 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
       return;
     }
 
-    // Direct Intuitive Drag Vector:
-    // Dragging right (dragCurrent.x > dragStart.x) produces positive dx -> Moves right!
-    // Dragging up (dragStart.y > dragCurrent.y) produces positive dy -> Moves forward to hoop!
+    // Direct Non-inverted Drag Vector:
+    // Swiping right (dragCurrent.x > dragStart.x) produces positive dx -> Moves right!
+    // Swiping up (dragStart.y > dragCurrent.y) produces positive dy -> Launches ball to hoop!
     const dx = dragCurrent.x - dragStart.x;
     const dy = dragStart.y - dragCurrent.y;
 
@@ -94,9 +94,9 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     const containerWidth = rect ? rect.width : 360;
     const containerHeight = rect ? rect.height : 500;
 
-    // Target position percentages (Aligned cleanly to visual hoop at X: 50%, Y: 36%)
-    const targetX = Math.min(88, Math.max(12, 50 + (dx / containerWidth) * 90));
-    const targetY = Math.min(65, Math.max(15, 80 - (dy / containerHeight) * 180));
+    // Target position percentages (Target Y mapped smoothly to hoop center at Y: 28%)
+    const targetX = Math.min(92, Math.max(8, 50 + (dx / containerWidth) * 110));
+    const targetY = Math.min(68, Math.max(10, 80 - (dy / containerHeight) * 215));
 
     // Animate ball arc towards target
     setBallRotation(720);
@@ -109,23 +109,23 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   };
 
   const evaluateShot = (targetX: number, targetY: number) => {
-    // Hoop Rim Center is aligned at X: 50%, Y: 36%
+    // Hoop Rim Center is synchronized at X: 50%, Y: 28%
     const hoopX = 50;
-    const hoopY = 36;
+    const hoopY = 28;
     const distToHoop = Math.hypot(targetX - hoopX, targetY - hoopY);
 
     let pts = 0;
     let feedback = '';
 
-    if (distToHoop <= 5.2) {
+    if (distToHoop <= 6.5) {
       pts = 3;
       feedback = '🔥 SWISH! TEMİZ BASKET! (+3 PUAN)';
       setNetRipple(true);
-    } else if (distToHoop <= 9.5) {
+    } else if (distToHoop <= 11.5) {
       pts = 2;
       feedback = '🏀 BASKET! (+2 PUAN)';
       setNetRipple(true);
-    } else if (distToHoop <= 14.5) {
+    } else if (distToHoop <= 16.5) {
       feedback = '💥 PANYADAN/ÇEMBERDEN SEKTİ!';
       // Bounce off effect
       setBallPos((prev) => ({ x: prev.x > 50 ? prev.x + 8 : prev.x - 8, y: prev.y + 10 }));
@@ -241,8 +241,8 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         </div>
 
         {/* Basketball Court Markings (Three Point Arc & Key Area) */}
-        <div className="absolute inset-x-[12%] top-[6%] h-[60%] border-2 border-white/35 rounded-b-full pointer-events-none z-0" />
-        <div className="absolute inset-x-[32%] top-[6%] h-[28%] border-b-2 border-x-2 border-amber-400/40 pointer-events-none z-0" />
+        <div className="absolute inset-x-[12%] top-[4%] h-[60%] border-2 border-white/35 rounded-b-full pointer-events-none z-0" />
+        <div className="absolute inset-x-[32%] top-[4%] h-[28%] border-b-2 border-x-2 border-amber-400/40 pointer-events-none z-0" />
 
         {/* Feedback Banner */}
         {lastShotFeedback && (
@@ -251,9 +251,9 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           </div>
         )}
 
-        {/* 3D Glass Backboard, Red LED & Swish Net SVG */}
-        <div className="absolute top-[6%] inset-x-0 h-44 flex justify-center items-start z-10 pointer-events-none">
-          <svg width="240" height="160" viewBox="0 0 240 160" className="drop-shadow-2xl">
+        {/* 3D Glass Backboard, Red LED & Swish Net SVG (Hoop Rim Center aligned at X: 50%, Y: 28%) */}
+        <div className="absolute top-[2%] inset-x-0 h-48 flex justify-center items-start z-10 pointer-events-none">
+          <svg width="240" height="170" viewBox="0 0 240 170" className="drop-shadow-2xl">
             <defs>
               <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.4" />
@@ -262,30 +262,30 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
             </defs>
 
             {/* Backboard Stand Support */}
-            <rect x="114" y="0" width="12" height="30" fill="#334155" />
+            <rect x="114" y="0" width="12" height="24" fill="#334155" />
 
             {/* Glass Backboard Plate */}
-            <rect x="25" y="18" width="190" height="110" rx="10" fill="url(#glassGrad)" stroke="#F8FAFC" strokeWidth="5" opacity="0.95" />
-            <rect x="80" y="55" width="80" height="55" rx="4" fill="none" stroke="#EF4444" strokeWidth="4" />
+            <rect x="25" y="14" width="190" height="110" rx="10" fill="url(#glassGrad)" stroke="#F8FAFC" strokeWidth="5" opacity="0.95" />
+            <rect x="80" y="50" width="80" height="55" rx="4" fill="none" stroke="#EF4444" strokeWidth="4" />
 
             {/* Red LED Boundary Frame */}
-            <rect x="28" y="21" width="184" height="104" rx="8" fill="none" stroke="#DC2626" strokeWidth="2" opacity="0.8" />
+            <rect x="28" y="17" width="184" height="104" rx="8" fill="none" stroke="#DC2626" strokeWidth="2" opacity="0.8" />
 
-            {/* Metallic Rim & Net Swish */}
+            {/* Metallic Rim & Net Swish (Rim Center at cy=112 => Y: 28%) */}
             <g className={netRipple ? 'animate-bounce' : ''}>
               {/* Orange Metallic Rim */}
-              <ellipse cx="120" cy="118" rx="28" ry="8" fill="none" stroke="#EA580C" strokeWidth="6" />
+              <ellipse cx="120" cy="112" rx="28" ry="8" fill="none" stroke="#EA580C" strokeWidth="6" />
 
               {/* 3D Basketball Net Lines */}
               <path
-                d="M 94 119 L 102 152 L 120 158 L 138 152 L 146 119"
+                d="M 94 113 L 102 148 L 120 154 L 138 148 L 146 113"
                 fill="none"
                 stroke="#F8FAFC"
                 strokeWidth="3"
                 strokeDasharray="5 3"
               />
               <path
-                d="M 107 119 L 120 156 L 133 119"
+                d="M 107 113 L 120 152 L 133 113"
                 fill="none"
                 stroke="#F8FAFC"
                 strokeWidth="2.5"
