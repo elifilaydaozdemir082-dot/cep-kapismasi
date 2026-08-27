@@ -207,8 +207,8 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       playFanfareSound(soundEnabled);
       triggerVibration([25, 35], vibrationEnabled);
 
-      // Trigger Confetti Explosion on Bullseye OR Level 5+ Fire hits!
-      if (baseScore === 10 || isFireArrow) {
+      // Trigger Confetti Explosion ONLY on exact center Bullseye (10 Puan) hits!
+      if (baseScore === 10) {
         triggerConfettiExplosion();
       }
 
