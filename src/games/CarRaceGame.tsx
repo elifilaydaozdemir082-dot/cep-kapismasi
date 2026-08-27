@@ -251,19 +251,10 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       }
 
       // 2. Update Distance & Score
-      const distDelta = speedScale * (dt / 16) * 1.5;
+      const distDelta = speedScale * (dt / 24);
       const nextDist = Math.round(distanceRef.current + distDelta);
       distanceRef.current = nextDist;
       setDistance(nextDist);
-
-      // Milestone Check
-      if (nextDist >= nextMilestoneRef.current) {
-        const milestone = nextMilestoneRef.current;
-        nextMilestoneRef.current += 500;
-        setMilestoneText(`🏁 ROTA AŞAMASI: ${milestone} METRE GEÇİLDİ!`);
-        playFanfareSound(soundEnabled);
-        setTimeout(() => setMilestoneText(null), 2000);
-      }
 
       // Survival Score addition
       const pointsDelta = (distDelta / 10) * (isDoublePoints ? 2 : 1) * streakMultiplier;
@@ -276,7 +267,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
         const updated: RaceObstacle[] = [];
 
         prev.forEach((obs) => {
-          const newY = obs.y + speedScale * (dt / 16) * (1 + obs.speedMultiplier);
+          const newY = obs.y + speedScale * (dt / 24) * (1 + obs.speedMultiplier);
 
           let newLane = obs.lane;
           let swerveTimer = obs.swerveTimer || 0;

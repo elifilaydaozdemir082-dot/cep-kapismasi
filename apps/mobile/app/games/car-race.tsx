@@ -50,23 +50,23 @@ export default function MobileCarRaceScreen() {
       lastTime = now;
 
       // Update distance & speed
-      setDistance((d) => d + Math.round(speed * delta * 2));
+      setDistance((d) => d + Math.round(speed * delta));
       setScore((s) => s + Math.round(speed * delta));
-      setSpeed((s) => Math.min(220, s + delta * 2));
+      setSpeed((s) => Math.min(120, s + delta * 0.5));
 
-      // Obstacle Spawner (Every 1.2s - 2.0s)
-      if (now - lastSpawnRef.current > 1400) {
+      // Obstacle Spawner (Every 2.4s)
+      if (now - lastSpawnRef.current > 2400) {
         lastSpawnRef.current = now;
         const randomLane = Math.floor(Math.random() * 3);
         const types: ('truck' | 'police' | 'oil' | 'barrier')[] = ['truck', 'police', 'oil', 'barrier'];
         const randomType = types[Math.floor(Math.random() * types.length)];
 
         setObstacles((prev) => [
-          ...prev.filter((o) => o.y < 105),
+          ...prev.filter((o) => o.y < 125),
           {
             id: now + Math.random(),
             lane: randomLane,
-            y: -10,
+            y: -15,
             type: randomType,
           },
         ]);
@@ -77,7 +77,7 @@ export default function MobileCarRaceScreen() {
         const nextObstacles: Obstacle[] = [];
 
         for (const obs of prev) {
-          const nextY = obs.y + speed * delta * 0.45;
+          const nextY = obs.y + speed * delta * 0.20;
 
           // Check Collision with Player Car (Player is at y = 78%)
           if (nextY >= 75.5 && nextY <= 82.5 && obs.lane === playerLaneRef.current) {

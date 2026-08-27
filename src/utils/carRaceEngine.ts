@@ -52,31 +52,31 @@ export interface DifficultyConfig {
 
 export const DIFFICULTY_CONFIGS: Record<RaceDifficulty, DifficultyConfig> = {
   easy: {
-    baseSpeed: 0.85,
-    maxSpeed: 1.4,
-    spawnIntervalMs: 2200,
+    baseSpeed: 0.38,
+    maxSpeed: 0.8,
+    spawnIntervalMs: 3200,
     powerupChance: 0.35,
-    trafficSwerveChance: 0.1,
+    trafficSwerveChance: 0.05,
+    minGapY: 35,
+    warmupSeconds: 5,
+  },
+  normal: {
+    baseSpeed: 0.50,
+    maxSpeed: 1.0,
+    spawnIntervalMs: 2500,
+    powerupChance: 0.25,
+    trafficSwerveChance: 0.15,
     minGapY: 30,
     warmupSeconds: 4,
   },
-  normal: {
-    baseSpeed: 1.1,
-    maxSpeed: 1.8,
-    spawnIntervalMs: 1600,
-    powerupChance: 0.25,
-    trafficSwerveChance: 0.25,
-    minGapY: 26,
-    warmupSeconds: 3,
-  },
   hard: {
-    baseSpeed: 1.4,
-    maxSpeed: 2.3,
-    spawnIntervalMs: 1100,
+    baseSpeed: 0.65,
+    maxSpeed: 1.3,
+    spawnIntervalMs: 1900,
     powerupChance: 0.18,
-    trafficSwerveChance: 0.45,
-    minGapY: 22,
-    warmupSeconds: 2,
+    trafficSwerveChance: 0.25,
+    minGapY: 25,
+    warmupSeconds: 3,
   },
 };
 
@@ -109,12 +109,11 @@ export function validateAndGenerateObstacle(params: SpawnCheckParams): RaceObsta
     100
   );
   if (highestObstacle < config.minGapY) {
-    return null; // Too close to top obstacle
+    return null;
   }
 
   const isWarmup = elapsedSeconds < config.warmupSeconds;
 
-  // Determine allowed obstacle types based on warmup and time
   let allowedTypes: ObstacleType[] = ['car', 'cone-row', 'oil'];
   if (!isWarmup) {
     allowedTypes.push('barrier', 'pothole', 'swerving-car');
@@ -129,13 +128,11 @@ export function validateAndGenerateObstacle(params: SpawnCheckParams): RaceObsta
   const type = allowedTypes[Math.floor(randomFn() * allowedTypes.length)];
   const widthLanes = type === 'truck' || type === 'roadwork' ? 2 : 1;
 
-  // Find candidate lanes (0, 1, 2, 3) where widthLanes fits
   const candidateLanes: number[] = [];
   for (let l = 0; l <= 4 - widthLanes; l++) {
     candidateLanes.push(l);
   }
 
-  // Filter out lanes that would completely block ALL 4 lanes at top (y < 40)
   const validLanes = candidateLanes.filter((lane) => {
     const occupiedLanes = new Set<number>();
     existingObstacles.forEach((obs) => {
@@ -167,7 +164,7 @@ export function validateAndGenerateObstacle(params: SpawnCheckParams): RaceObsta
     y: -18,
     type,
     color,
-    speedMultiplier: type === 'car' || type === 'swerving-car' ? 0.3 : 0,
+    speedMultiplier: type === 'car' || type === 'swerving-car' ? 0.15 : 0,
     swerving,
     swerveDirection: randomFn() > 0.5 ? 1 : -1,
     swerveTimer: 0,
@@ -211,16 +208,14 @@ export function validateAndGeneratePowerup(
 
 export function checkNearMiss(
   playerLane: number,
-  playerY: number, // percentage, e.g. 80%
+  playerY: number,
   obstacle: RaceObstacle
 ): boolean {
   if (obstacle.hasBeenNearMissed) return false;
 
-  // Precise Near Miss bounds check: adjacent lane, Y range [playerY - 5, playerY + 5]
-  const isYOverlapping = obstacle.y >= playerY - 5 && obstacle.y <= playerY + 5;
+  const isYOverlapping = obstacle.y >= playerY - 4 && obstacle.y <= playerY + 4;
   if (!isYOverlapping) return false;
 
-  // Check lane proximity: adjacent lane
   const isAdjacentLane =
     (playerLane === obstacle.lane - 1 && obstacle.lane > 0) ||
     (playerLane === obstacle.lane + obstacle.widthLanes);
@@ -233,11 +228,9 @@ export function checkCollision(
   playerY: number,
   obstacle: RaceObstacle
 ): boolean {
-  // Precision Hitbox Check: Trigger ONLY when obstacle touches player bounds [playerY - 4.5, playerY + 4.5]
-  const isYOverlapping = obstacle.y >= playerY - 4.5 && obstacle.y <= playerY + 4.5;
+  const isYOverlapping = obstacle.y >= playerY - 4 && obstacle.y <= playerY + 4;
   if (!isYOverlapping) return false;
 
-  // Check lane overlap
   const isLaneOverlapping =
     playerLane >= obstacle.lane && playerLane < obstacle.lane + obstacle.widthLanes;
 
@@ -249,6 +242,6 @@ export function calculateInGameSpeedKmh(
   speedFactor: number,
   elapsedSeconds: number
 ): number {
-  const speedScale = 90 + baseSpeed * 110 + elapsedSeconds * 1.2;
+  const speedScale = 50 + baseSpeed * 60 + elapsedSeconds * 0.4;
   return Math.round(speedScale * speedFactor);
 }
