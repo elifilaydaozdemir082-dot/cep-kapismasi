@@ -26,45 +26,18 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
   // Paddles & Puck position state (% coords)
   const [p1Paddle, setP1Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 80 });
-  const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 20 });
+  const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 16 });
   const [puck, setPuck] = useState<{ x: number; y: number; vx: number; vy: number }>({
     x: 50,
     y: 50,
-    vx: 0.2,
-    vy: 0.3,
+    vx: 0.25,
+    vy: 0.35,
   });
 
   const isFinishedRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Dynamic AI Bot Paddle Logic (Single Player)
-  useEffect(() => {
-    if (mode !== 'single' || isFinishedRef.current) return;
-
-    const interval = setInterval(() => {
-      setP2Paddle((prev) => {
-        // If puck is in AI's half (y < 50), AI aggressively moves towards puck
-        // If puck is in player's half (y >= 50), AI retreats to defend goal
-        const targetX = puck.x;
-        const targetY = puck.y < 50 ? Math.min(38, Math.max(12, puck.y - 4)) : 16;
-
-        const dx = targetX - prev.x;
-        const dy = targetY - prev.y;
-
-        const speedX = 0.28;
-        const speedY = 0.25;
-
-        const newX = Math.min(Math.max(prev.x + dx * speedX, 15), 85);
-        const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 44);
-
-        return { x: newX, y: newY };
-      });
-    }, 25);
-
-    return () => clearInterval(interval);
-  }, [mode, puck]);
-
-  // Puck Motion & Collision Physics Loop
+  // 60FPS Game Physics Loop & Intelligent AI Bot Engine
   useEffect(() => {
     if (isFinishedRef.current) return;
 
@@ -72,28 +45,51 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
     let lastTime = performance.now();
 
     const loop = (time: number) => {
-      const delta = (time - lastTime) / 1000;
+      const delta = Math.min(0.05, (time - lastTime) / 1000);
       lastTime = time;
 
+      // 1. Intelligent AI Bot Logic (Single Player Mode - Yellow Paddle)
+      if (mode === 'single') {
+        setP2Paddle((prev) => {
+          // If puck is in AI's top half (y < 50), AI aggressively charges towards puck
+          // If puck is in player's bottom half (y >= 50), AI retreats to defend top goal line
+          const targetX = puck.x;
+          const targetY = puck.y < 48 ? Math.min(38, Math.max(12, puck.y - 3)) : 16;
+
+          const dx = targetX - prev.x;
+          const dy = targetY - prev.y;
+
+          // Dynamic speed coefficients for fast, challenging bot AI
+          const speedX = 0.35;
+          const speedY = 0.30;
+
+          const newX = Math.min(Math.max(prev.x + dx * speedX, 15), 85);
+          const newY = Math.min(Math.max(prev.y + dy * speedY, 10), 44);
+
+          return { x: newX, y: newY };
+        });
+      }
+
+      // 2. Puck Motion & Wall / Goal / Paddle Collisions
       setPuck((prev) => {
-        let newX = prev.x + prev.vx * delta * 50;
-        let newY = prev.y + prev.vy * delta * 50;
+        let newX = prev.x + prev.vx * delta * 55;
+        let newY = prev.y + prev.vy * delta * 55;
         let vx = prev.vx;
         let vy = prev.vy;
 
         // Bounce off left/right side walls
-        if (newX <= 5 || newX >= 95) {
+        if (newX <= 6 || newX >= 94) {
           vx = -vx;
-          newX = Math.min(Math.max(newX, 5), 95);
+          newX = Math.min(Math.max(newX, 6), 94);
           playBeepSound(300, 0.05, soundEnabled);
         }
 
-        // Check Goals (Top & Bottom goal mouth width 30% to 70%)
+        // Check Goal Scoring (Top & Bottom goal mouth width 30% to 70%)
         if (newY <= 4) {
           if (newX >= 30 && newX <= 70) {
             // Player 1 Goal!
             handleGoal('P1');
-            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: 0.3 };
+            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: 0.35 };
           } else {
             vy = -vy;
             newY = 4;
@@ -101,9 +97,9 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           }
         } else if (newY >= 96) {
           if (newX >= 30 && newX <= 70) {
-            // Player 2 Goal!
+            // Player 2 (Bot) Goal!
             handleGoal('P2');
-            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: -0.3 };
+            return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: -0.35 };
           } else {
             vy = -vy;
             newY = 96;
@@ -111,20 +107,20 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           }
         }
 
-        // Paddle Collision - P1 Paddle (Bottom)
+        // Paddle Collision - P1 Paddle (Cyan / Bottom)
         const distP1 = Math.hypot(newX - p1Paddle.x, newY - p1Paddle.y);
         if (distP1 < 10) {
-          vy = -Math.abs(vy) - 0.05;
-          vx = (newX - p1Paddle.x) * 0.09;
+          vy = -Math.abs(vy) - 0.06;
+          vx = (newX - p1Paddle.x) * 0.10;
           playBeepSound(600, 0.08, soundEnabled);
           triggerVibration(15, vibrationEnabled);
         }
 
-        // Paddle Collision - P2 Paddle (Top)
+        // Paddle Collision - P2 Paddle (Yellow Bot / Top)
         const distP2 = Math.hypot(newX - p2Paddle.x, newY - p2Paddle.y);
         if (distP2 < 10) {
-          vy = Math.abs(vy) + 0.05;
-          vx = (newX - p2Paddle.x) * 0.09;
+          vy = Math.abs(vy) + 0.06;
+          vx = (newX - p2Paddle.x) * 0.10;
           playBeepSound(600, 0.08, soundEnabled);
           triggerVibration(15, vibrationEnabled);
         }
@@ -137,7 +133,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [p1Paddle, p2Paddle, soundEnabled, vibrationEnabled]);
+  }, [p1Paddle, p2Paddle, puck, mode, soundEnabled, vibrationEnabled]);
 
   const handleGoal = (scorer: 'P1' | 'P2') => {
     if (isFinishedRef.current) return;
@@ -197,7 +193,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         <div className="flex items-center gap-4 text-sm font-black">
           <span style={{ color: players[0]?.color }}>{players[0]?.name}: {p1Score}</span>
           <span>vs</span>
-          <span style={{ color: players[1]?.color || '#FF9F43' }}>
+          <span style={{ color: players[1]?.color || '#F59E0B' }}>
             {mode === 'single' ? 'BOT' : players[1]?.name}: {p2Score}
           </span>
         </div>
@@ -206,46 +202,62 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       {/* Air Hockey Table Arena */}
       <div
         ref={containerRef}
-        onPointerMove={(e) => {
-          handleP1Pointer(e);
-          handleP2Pointer(e);
-        }}
-        className="flex-1 bg-slate-900 border-4 border-cyan-500 rounded-3xl relative overflow-hidden shadow-2xl select-none touch-none"
+        onPointerMove={handleP1Pointer}
+        onPointerDown={handleP1Pointer}
+        className="flex-1 relative bg-slate-900 border-4 border-cyan-500/40 rounded-3xl overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.2)] flex flex-col justify-between"
       >
-        {/* Center Line & Ring */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-cyan-500/40" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full border-2 border-cyan-500/40 pointer-events-none" />
-
-        {/* Goals (Top & Bottom mouth) */}
-        <div className="absolute top-0 left-[30%] right-[30%] h-4 bg-rose-600/80 rounded-b-xl border-b-2 border-white shadow-inner flex items-center justify-center text-[9px] font-black text-white">
-          KALE 2
-        </div>
-        <div className="absolute bottom-0 left-[30%] right-[30%] h-4 bg-rose-600/80 rounded-t-xl border-t-2 border-white shadow-inner flex items-center justify-center text-[9px] font-black text-white">
-          KALE 1
+        {/* Top Goal Mouth (P2 / Bot Goal) */}
+        <div className="absolute top-0 inset-x-[30%] h-3 bg-rose-500/80 border-b-2 border-rose-400 rounded-b-lg flex items-center justify-center z-10">
+          <span className="text-[9px] font-black text-white tracking-widest uppercase">KALE 2</span>
         </div>
 
-        {/* Top Paddle (P2 / AI) */}
+        {/* Bottom Goal Mouth (P1 Goal) */}
+        <div className="absolute bottom-0 inset-x-[30%] h-3 bg-rose-500/80 border-t-2 border-rose-400 rounded-t-lg flex items-center justify-center z-10">
+          <span className="text-[9px] font-black text-white tracking-widest uppercase">KALE 1</span>
+        </div>
+
+        {/* Center Line & Circle */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-cyan-500/40 pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 border-2 border-cyan-500/40 rounded-full pointer-events-none" />
+
+        {/* Top Half Drag Area (Multiplayer P2) */}
+        {mode === 'multi' && (
+          <div
+            onPointerMove={handleP2Pointer}
+            onPointerDown={handleP2Pointer}
+            className="absolute top-0 inset-x-0 h-1/2 z-0 cursor-pointer"
+          />
+        )}
+
+        {/* Yellow Bot / P2 Paddle */}
         <div
-          style={{ left: `${p2Paddle.x}%`, top: `${p2Paddle.y}%` }}
-          className="absolute -ml-6 -mt-6 w-12 h-12 rounded-full bg-amber-400 border-4 border-white shadow-xl flex items-center justify-center pointer-events-none z-10"
+          style={{
+            left: `${p2Paddle.x}%`,
+            top: `${p2Paddle.y}%`,
+          }}
+          className="absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-amber-400 border-4 border-amber-200 shadow-[0_0_15px_#F59E0B] flex items-center justify-center z-20 pointer-events-none transition-all duration-75"
         >
-          <div className="w-4 h-4 rounded-full bg-slate-950" />
+          <div className="w-6 h-6 rounded-full bg-slate-950 border-2 border-amber-300" />
         </div>
 
-        {/* Bottom Paddle (P1) */}
+        {/* Red Puck */}
         <div
-          style={{ left: `${p1Paddle.x}%`, top: `${p1Paddle.y}%` }}
-          className="absolute -ml-6 -mt-6 w-12 h-12 rounded-full bg-cyan-400 border-4 border-white shadow-xl flex items-center justify-center pointer-events-none z-10"
-        >
-          <div className="w-4 h-4 rounded-full bg-slate-950" />
-        </div>
+          style={{
+            left: `${puck.x}%`,
+            top: `${puck.y}%`,
+          }}
+          className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-rose-500 border-2 border-white shadow-[0_0_12px_#EF4444] z-20 pointer-events-none"
+        />
 
-        {/* Puck */}
+        {/* Cyan P1 Paddle */}
         <div
-          style={{ left: `${puck.x}%`, top: `${puck.y}%` }}
-          className="absolute -ml-4 -mt-4 w-8 h-8 rounded-full bg-slate-950 border-4 border-rose-500 shadow-2xl flex items-center justify-center pointer-events-none z-20"
+          style={{
+            left: `${p1Paddle.x}%`,
+            top: `${p1Paddle.y}%`,
+          }}
+          className="absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-cyan-400 border-4 border-cyan-200 shadow-[0_0_15px_#06B6D4] flex items-center justify-center z-20 pointer-events-none transition-all duration-75"
         >
-          <div className="w-2 h-2 rounded-full bg-rose-500" />
+          <div className="w-6 h-6 rounded-full bg-slate-950 border-2 border-cyan-300" />
         </div>
       </div>
     </div>
