@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Swords, Bot, Zap } from 'lucide-react';
+import { Flame, Zap, Trophy } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -18,65 +18,114 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
   soundEnabled,
   vibrationEnabled,
 }) => {
-  const [ropePosition, setRopePosition] = useState<number>(50); // 0..100%, 50 is center
+  // Rope position from 0 (Left Player Win) to 100 (Right Player Win). 50 is center.
+  const [ropePos, setRopePos] = useState<number>(50);
   const [isFinished, setIsFinished] = useState<boolean>(false);
-  const [lastPullTeam, setLastPullTeam] = useState<'left' | 'right' | null>(null);
+
+  // Power Charge Bar for Super Pull (0..100)
+  const [p1Power, setP1Power] = useState<number>(0);
+  const [p2Power, setP2Power] = useState<number>(0);
+
+  // Active Super Pull Glow State
+  const [p1Super, setP1Super] = useState<boolean>(false);
+  const [p2Super, setP2Super] = useState<boolean>(false);
 
   const isFinishedRef = useRef<boolean>(false);
+  const ropePosRef = useRef<number>(50);
 
   const player1 = players[0];
-  const player2 = players[1] || { id: 'bot', name: 'Bot Rakip', color: '#EF4444', score: 0 };
+  const player2 = players[1] || { id: 'bot', name: 'Dev Bot', color: '#EF4444', score: 0 };
 
-  // Single player AI pull loop
+  // AI Pull Loop for Single-Player Mode
   useEffect(() => {
     if (mode !== 'single' || isFinishedRef.current) return;
 
     const interval = setInterval(() => {
-      setRopePosition((prev) => {
-        const next = prev + 1.4; // AI pulls right
-        setLastPullTeam('right');
-        if (next >= 88) {
-          clearInterval(interval);
-          handleGameEnd(player2);
-          return 100;
-        }
-        return next;
-      });
-    }, 140);
+      if (isFinishedRef.current) return;
+
+      // AI pulls right periodically
+      const aiPullPower = 1.3 + Math.random() * 0.8;
+      let newPos = ropePosRef.current + aiPullPower;
+
+      // AI occasional Super Pull chance
+      if (Math.random() < 0.08) {
+        newPos += 4.5;
+        setP2Super(true);
+        setTimeout(() => setP2Super(false), 500);
+      }
+
+      ropePosRef.current = Math.min(96, newPos);
+      setRopePos(ropePosRef.current);
+
+      if (ropePosRef.current >= 92) {
+        clearInterval(interval);
+        handleGameEnd(player2);
+      }
+    }, 130);
 
     return () => clearInterval(interval);
-  }, [mode, isFinished]);
+  }, [mode]);
 
   const handlePullLeft = () => {
     if (isFinishedRef.current) return;
     playTapSound(soundEnabled);
-    triggerVibration(10, vibrationEnabled);
-    setLastPullTeam('left');
+    triggerVibration(12, vibrationEnabled);
 
-    setRopePosition((prev) => {
-      const next = prev - 3.8;
-      if (next <= 12) {
-        handleGameEnd(player1);
+    // Charge Super Power
+    setP1Power((prev) => {
+      const next = prev + 12;
+      if (next >= 100) {
+        // Trigger P1 Super Pull!
+        setP1Super(true);
+        setTimeout(() => setP1Super(false), 600);
+        ropePosRef.current = Math.max(8, ropePosRef.current - 9.0);
+        setRopePos(ropePosRef.current);
+        playFanfareSound(soundEnabled);
         return 0;
       }
       return next;
     });
+
+    // Normal Pull
+    const pullAmount = p1Super ? 6.0 : 2.6;
+    const nextPos = Math.max(8, ropePosRef.current - pullAmount);
+    ropePosRef.current = nextPos;
+    setRopePos(nextPos);
+
+    if (nextPos <= 12) {
+      handleGameEnd(player1);
+    }
   };
 
   const handlePullRight = () => {
     if (isFinishedRef.current || mode === 'single') return;
     playTapSound(soundEnabled);
-    triggerVibration(10, vibrationEnabled);
-    setLastPullTeam('right');
+    triggerVibration(12, vibrationEnabled);
 
-    setRopePosition((prev) => {
-      const next = prev + 3.8;
-      if (next >= 88) {
-        handleGameEnd(player2);
-        return 100;
+    // Charge Super Power
+    setP2Power((prev) => {
+      const next = prev + 12;
+      if (next >= 100) {
+        // Trigger P2 Super Pull!
+        setP2Super(true);
+        setTimeout(() => setP2Super(false), 600);
+        ropePosRef.current = Math.min(92, ropePosRef.current + 9.0);
+        setRopePos(ropePosRef.current);
+        playFanfareSound(soundEnabled);
+        return 0;
       }
       return next;
     });
+
+    // Normal Pull
+    const pullAmount = p2Super ? 6.0 : 2.6;
+    const nextPos = Math.min(92, ropePosRef.current + pullAmount);
+    ropePosRef.current = nextPos;
+    setRopePos(nextPos);
+
+    if (nextPos >= 88) {
+      handleGameEnd(player2);
+    }
   };
 
   const handleGameEnd = (winner: Player) => {
@@ -86,7 +135,7 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
 
     if (winner.id === player1.id) {
       playFanfareSound(soundEnabled);
-      triggerVibration([20, 30], vibrationEnabled);
+      triggerVibration([20, 40], vibrationEnabled);
     } else {
       playBeepSound(200, 0.3, soundEnabled);
       triggerVibration(50, vibrationEnabled);
@@ -95,9 +144,9 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
     const results = [
       {
         playerId: player1.id,
-        score: winner.id === player1.id ? 100 : 30,
+        score: winner.id === player1.id ? 100 : 35,
         stats: {
-          'Sonuç': winner.id === player1.id ? 'KAZANDI' : 'KAYBETTİ',
+          'Düello Sonucu': winner.id === player1.id ? 'ŞAMPİYON (KAZANDI)' : 'ÇAMURA DÜŞTÜ',
         },
       },
     ];
@@ -105,125 +154,165 @@ export const TugOfWarGame: React.FC<TugOfWarGameProps> = ({
     if (mode === 'multi' && players[1]) {
       results.push({
         playerId: players[1].id,
-        score: winner.id === players[1].id ? 100 : 30,
+        score: winner.id === players[1].id ? 100 : 35,
         stats: {
-          'Sonuç': winner.id === players[1].id ? 'KAZANDI' : 'KAYBETTİ',
+          'Düello Sonucu': winner.id === players[1].id ? 'ŞAMPİYON (KAZANDI)' : 'ÇAMURA DÜŞTÜ',
         },
       });
     }
 
-    setTimeout(() => onFinishGame(results), 1200);
+    setTimeout(() => onFinishGame(results), 1400);
   };
 
   return (
     <div className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none overflow-hidden touch-none p-3 space-y-2">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 shadow-md">
-        <div className="flex items-center gap-2">
-          <Swords className="w-5 h-5 text-purple-400" aria-hidden="true" />
-          <span className="font-extrabold text-sm text-white">Halat Çekme Düellosu</span>
+      {/* Header Bar with left padding reserved for global Ana Sayfa HomeButton */}
+      <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-2xl pl-28 pr-3 py-1.5 shadow-md">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-black text-[11px] tracking-tight text-amber-400 truncate">🪢 HALAT ÇEKME</span>
         </div>
 
-        <span className="text-xs font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
-          En Hızlı Dokunan Çeker!
-        </span>
+        <div className="flex items-center gap-1.5 text-[11px] font-black shrink-0">
+          <span style={{ color: player1.color }} className="bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800 truncate max-w-[80px]">
+            👤 {player1.name}
+          </span>
+          <span className="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg flex items-center gap-1">
+            <Trophy className="w-3 h-3" /> VS
+          </span>
+          <span style={{ color: player2.color }} className="bg-slate-950/80 px-2 py-0.5 rounded-lg border border-slate-800 truncate max-w-[80px]">
+            👤 {mode === 'single' ? 'BOT' : player2.name}
+          </span>
+        </div>
       </div>
 
-      {/* Main Rope Field & Animation Arena */}
-      <div className="flex-1 relative bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950/30 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4 my-auto">
-        {/* Team Status Headers */}
-        <div className="flex justify-between items-center text-xs font-black bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-inner">
-          <div className="flex items-center gap-2">
-            <span style={{ backgroundColor: player1.color }} className="w-3.5 h-3.5 rounded-full animate-pulse" />
-            <span style={{ color: player1.color }} className="text-sm font-black">
-              {player1.name} (SOL)
+      {/* Main Mud Pit Arena */}
+      <div
+        className="flex-1 relative border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between p-4"
+        style={{
+          background: 'linear-gradient(to bottom, #020617 0%, #3F2305 40%, #261303 70%, #0F0903 100%)',
+        }}
+      >
+        {/* Super Pull Glow Banners */}
+        {p1Super && (
+          <div className="absolute top-4 left-4 z-50 bg-amber-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full animate-bounce shadow-[0_0_20px_#F59E0B] flex items-center gap-1">
+            <Flame className="w-4 h-4 fill-current" /> {player1.name} SÜPER ÇEKİŞ!
+          </div>
+        )}
+        {p2Super && (
+          <div className="absolute top-4 right-4 z-50 bg-rose-500 text-white font-black text-xs px-3 py-1 rounded-full animate-bounce shadow-[0_0_20px_#EF4444] flex items-center gap-1">
+            <Flame className="w-4 h-4 fill-current" /> {mode === 'single' ? 'BOT' : player2.name} SÜPER ÇEKİŞ!
+          </div>
+        )}
+
+        {/* Central Mud Pit Graphics */}
+        <div className="relative w-full h-44 bg-amber-950/80 border-4 border-amber-900/60 rounded-3xl my-auto flex flex-col justify-center px-4 shadow-2xl overflow-hidden">
+          {/* Mud Pit Waves Pattern */}
+          <div className="absolute inset-0 bg-[radial-gradient(#78350F_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
+
+          {/* Central Mud Danger Pit Zone */}
+          <div className="absolute left-1/2 top-0 bottom-0 w-32 -translate-x-1/2 bg-amber-950 border-x-4 border-dashed border-amber-600/40 flex items-center justify-center pointer-events-none">
+            <span className="text-[10px] font-black text-amber-500/60 uppercase tracking-widest rotate-90">
+              💩 ÇAMUR ÇUKURU
             </span>
           </div>
 
-          <Zap className="w-4 h-4 text-amber-400 animate-bounce" />
+          {/* Winning Flags */}
+          <div className="absolute left-6 top-0 bottom-0 w-1 bg-cyan-400/40 border-r border-dashed border-cyan-400" />
+          <div className="absolute right-6 top-0 bottom-0 w-1 bg-rose-400/40 border-l border-dashed border-rose-400" />
 
-          <div className="flex items-center gap-2">
-            <span style={{ color: player2.color }} className="text-sm font-black">
-              {mode === 'single' ? 'BOT RAKİP' : `${player2.name} (SAĞ)`}
-            </span>
-            <span style={{ backgroundColor: player2.color }} className="w-3.5 h-3.5 rounded-full animate-pulse" />
-          </div>
-        </div>
-
-        {/* Rope Stadium Arena Track */}
-        <div className="relative w-full h-40 bg-slate-950 border-2 border-slate-800 rounded-3xl my-auto flex flex-col justify-center px-4 shadow-inner overflow-hidden">
-          {/* Ground Markings */}
-          <div className="absolute inset-0 flex justify-between pointer-events-none opacity-20">
-            <div className="w-1/4 bg-blue-500/20 border-r border-blue-400" />
-            <div className="w-1/2 bg-amber-500/10" />
-            <div className="w-1/4 bg-rose-500/20 border-l border-rose-400" />
-          </div>
-
-          {/* Central Win Boundary Markers */}
-          <div className="absolute left-1/4 top-0 bottom-0 w-1 bg-cyan-400/40 border-r border-dashed border-cyan-400" />
-          <div className="absolute left-1/2 top-0 bottom-0 w-1.5 bg-rose-500 z-10 -translate-x-1/2 shadow-lg shadow-rose-500/50" />
-          <div className="absolute right-1/4 top-0 bottom-0 w-1 bg-cyan-400/40 border-l border-dashed border-cyan-400" />
-
-          {/* Dynamic Textured Rope SVG */}
-          <div className="relative w-full h-12 flex items-center">
-            <svg width="100%" height="40" className="w-full h-10 overflow-visible">
+          {/* Heavy Rope SVG Strand */}
+          <div className="relative w-full h-16 flex items-center z-20">
+            <svg width="100%" height="48" className="w-full h-12 overflow-visible">
               <defs>
-                <linearGradient id="ropeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <linearGradient id="tugRopeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#D97706" />
                   <stop offset="50%" stopColor="#F59E0B" />
                   <stop offset="100%" stopColor="#B45309" />
                 </linearGradient>
               </defs>
 
-              {/* Rope Main Strand */}
-              <line x1="0" y1="20" x2="100%" y2="20" stroke="url(#ropeGrad)" strokeWidth="12" strokeLinecap="round" />
-              <line x1="0" y1="20" x2="100%" y2="20" stroke="#78350F" strokeWidth="10" strokeDasharray="8 6" strokeLinecap="round" />
+              {/* Rope Shadow & Core */}
+              <line x1="0" y1="24" x2="100%" y2="24" stroke="#451A03" strokeWidth="18" strokeLinecap="round" />
+              <line x1="0" y1="24" x2="100%" y2="24" stroke="url(#tugRopeGrad)" strokeWidth="14" strokeLinecap="round" />
+              <line x1="0" y1="24" x2="100%" y2="24" stroke="#78350F" strokeWidth="10" strokeDasharray="10 8" strokeLinecap="round" />
             </svg>
 
-            {/* Central Red Knot & Flag Indicator */}
+            {/* Central Red Marker Knot & Flag */}
             <div
-              style={{ left: `${ropePosition}%` }}
-              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-150 z-30 flex flex-col items-center ${
-                lastPullTeam ? 'scale-110' : ''
-              }`}
+              style={{ left: `${ropePos}%` }}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-75 z-40 flex flex-col items-center"
             >
-              <div className="w-8 h-8 rounded-full bg-rose-600 border-2 border-white shadow-2xl flex items-center justify-center text-white font-black text-xs">
+              <div className="w-9 h-9 rounded-full bg-rose-600 border-2 border-white shadow-[0_0_20px_rgba(225,29,72,0.8)] flex items-center justify-center text-white font-black text-sm animate-pulse">
                 🚩
               </div>
-              <div className="w-1 h-8 bg-rose-500 shadow-md" />
+              <div className="w-1.5 h-10 bg-rose-500 shadow-md" />
+            </div>
+
+            {/* Left Pulling Character Stickman */}
+            <div
+              style={{ left: `calc(${ropePos}% - 65px)` }}
+              className="absolute top-1/2 -translate-y-1/2 transition-all duration-75 z-30 flex items-center gap-1"
+            >
+              <div className="w-10 h-10 rounded-full bg-cyan-500 border-2 border-white shadow-lg flex items-center justify-center font-black text-xs text-white animate-bounce">
+                🏋️‍♂️
+              </div>
+            </div>
+
+            {/* Right Pulling Character Stickman */}
+            <div
+              style={{ left: `calc(${ropePos}% + 25px)` }}
+              className="absolute top-1/2 -translate-y-1/2 transition-all duration-75 z-30 flex items-center gap-1"
+            >
+              <div className="w-10 h-10 rounded-full bg-rose-500 border-2 border-white shadow-lg flex items-center justify-center font-black text-xs text-white animate-bounce">
+                🤼‍♂️
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Action Touch Buttons */}
+        {/* Action Touch Controls */}
         <div className="grid grid-cols-2 gap-3 pt-2">
-          <button
-            onClick={handlePullLeft}
-            disabled={isFinished}
-            style={{ backgroundColor: player1.color }}
-            className="py-7 rounded-2xl font-black text-xl text-slate-950 shadow-xl border-2 border-white/30 active:scale-95 transition-all hover:brightness-110 flex items-center justify-center gap-2"
-          >
-            <span>{player1.name} ÇEK!</span>
-          </button>
+          {/* Player 1 Pull Button */}
+          <div className="flex flex-col gap-1.5">
+            {/* Power Meter */}
+            <div className="w-full bg-slate-950 border border-cyan-500/30 rounded-full h-3 overflow-hidden p-0.5">
+              <div
+                style={{ width: `${p1Power}%` }}
+                className="h-full bg-gradient-to-r from-cyan-500 to-amber-400 rounded-full transition-all duration-100"
+              />
+            </div>
+            <button
+              onClick={handlePullLeft}
+              disabled={isFinished}
+              style={{ backgroundColor: player1.color }}
+              className="py-4 rounded-2xl font-black text-sm text-white shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2 border-2 border-white/20"
+            >
+              <Zap className="w-5 h-5 fill-current" />
+              <span>{player1.name} (ÇEK!)</span>
+            </button>
+          </div>
 
-          <button
-            onClick={handlePullRight}
-            disabled={isFinished || mode === 'single'}
-            style={{ backgroundColor: player2.color }}
-            className={`py-7 rounded-2xl font-black text-xl shadow-xl border-2 transition-all flex items-center justify-center gap-2 ${
-              mode === 'single'
-                ? 'bg-slate-800 border-slate-700 text-slate-500 opacity-50'
-                : 'text-slate-950 border-white/30 active:scale-95 hover:brightness-110'
-            }`}
-          >
-            {mode === 'single' ? (
-              <span className="flex items-center justify-center gap-2">
-                <Bot className="w-6 h-6 animate-spin" aria-hidden="true" /> BOT ÇEKİYOR...
-              </span>
-            ) : (
-              <span>{player2.name} ÇEK!</span>
-            )}
-          </button>
+          {/* Player 2 / Bot Pull Button */}
+          <div className="flex flex-col gap-1.5">
+            {/* Power Meter */}
+            <div className="w-full bg-slate-950 border border-rose-500/30 rounded-full h-3 overflow-hidden p-0.5">
+              <div
+                style={{ width: `${p2Power}%` }}
+                className="h-full bg-gradient-to-r from-rose-500 to-amber-400 rounded-full transition-all duration-100"
+              />
+            </div>
+            <button
+              onClick={handlePullRight}
+              disabled={isFinished || mode === 'single'}
+              style={{ backgroundColor: player2.color }}
+              className={`py-4 rounded-2xl font-black text-sm text-white shadow-2xl transition-all flex items-center justify-center gap-2 border-2 border-white/20 ${
+                mode === 'single' ? 'opacity-60 cursor-not-allowed' : 'active:scale-95'
+              }`}
+            >
+              <Zap className="w-5 h-5 fill-current" />
+              <span>{mode === 'single' ? 'BOT RAKİP' : `${player2.name} (ÇEK!)`}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
