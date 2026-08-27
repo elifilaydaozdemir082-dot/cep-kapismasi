@@ -80,9 +80,11 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
   const [_coins, setCoins] = useState<RaceCoin[]>([]);
   const [roadLineOffset, setRoadLineOffset] = useState<number>(0);
 
-  // Refs for animation loop & stale-closure protection
+  // Persistent Refs across render cycles
   const animFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(performance.now());
+  const lastSpawnTimeRef = useRef<number>(0);
+  const secondsCounterTimeRef = useRef<number>(0);
   const isFinishedRef = useRef<boolean>(false);
   const prngRef = useRef<() => number>(Math.random);
 
@@ -92,7 +94,9 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
   const livesRef = useRef<number>(3);
   const isInvincibleRef = useRef<boolean>(false);
   const isOilSlippingRef = useRef<boolean>(false);
-  const lastNearMissTimeRef = useRef<number>(0);
+  const obstaclesRef = useRef<RaceObstacle[]>([]);
+  const powerupsRef = useRef<RacePowerup[]>([]);
+  const elapsedSecondsRef = useRef<number>(0);
 
   const nextMilestoneRef = useRef<number>(500);
 
@@ -101,11 +105,22 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
 
   const currentPlayer = players[0];
 
+  useEffect(() => {
+    obstaclesRef.current = obstacles;
+  }, [obstacles]);
+
+  useEffect(() => {
+    powerupsRef.current = powerups;
+  }, [powerups]);
+
+  useEffect(() => {
+    elapsedSecondsRef.current = elapsedSeconds;
+  }, [elapsedSeconds]);
+
   // Synchronize ref on lane change
   const changeLane = (direction: -1 | 1) => {
     if (isFinishedRef.current || !isGameStarted) return;
     if (isOilSlippingRef.current) {
-      // Slip effect: reverses or delays lane change
       triggerVibration(30, vibrationEnabled);
       return;
     }
@@ -162,8 +177,11 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
     livesRef.current = 3;
     setTimeLeft(60);
     setElapsedSeconds(0);
+    elapsedSecondsRef.current = 0;
     setObstacles([]);
+    obstaclesRef.current = [];
     setPowerups([]);
+    powerupsRef.current = [];
     setCoins([]);
     setHasShield(false);
     setIsNitro(false);
@@ -184,16 +202,17 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
     nextMilestoneRef.current = 500;
     isFinishedRef.current = false;
 
-    lastTimeRef.current = performance.now();
+    const now = performance.now();
+    lastTimeRef.current = now;
+    lastSpawnTimeRef.current = now;
+    secondsCounterTimeRef.current = now;
+
     setIsGameStarted(true);
   };
 
   // Main Game Animation Loop
   useEffect(() => {
     if (!isGameStarted || isFinishedRef.current) return;
-
-    let lastSpawnTime = performance.now();
-    let secondsCounterTime = performance.now();
 
     const config = DIFFICULTY_CONFIGS[selectedDifficulty];
 
@@ -204,7 +223,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       // Calculate Speed & Modifiers
       const speedFactor = isNitro ? 1.8 : 1.0;
       const speedScale = config.baseSpeed * speedFactor;
-      const currentSpeedKmh = calculateInGameSpeedKmh(config.baseSpeed, speedFactor, elapsedSeconds);
+      const currentSpeedKmh = calculateInGameSpeedKmh(config.baseSpeed, speedFactor, elapsedSecondsRef.current);
 
       setMaxSpeedKmh((prev) => Math.max(prev, currentSpeedKmh));
 
@@ -212,10 +231,11 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       setRoadLineOffset((prev) => (prev + currentSpeedKmh * (dt / 16)) % 40);
 
       // 1. Update Elapsed Seconds & Timer
-      if (now - secondsCounterTime >= 1000) {
-        secondsCounterTime = now;
+      if (now - secondsCounterTimeRef.current >= 1000) {
+        secondsCounterTimeRef.current = now;
         setElapsedSeconds((sec) => {
           const nextSec = sec + 1;
+          elapsedSecondsRef.current = nextSec;
 
           if (selectedGameMode === 'time-attack') {
             setTimeLeft((t) => {
@@ -245,7 +265,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
         setTimeout(() => setMilestoneText(null), 2000);
       }
 
-      // Survival Score addition (1 pt per 10m)
+      // Survival Score addition
       const pointsDelta = (distDelta / 10) * (isDoublePoints ? 2 : 1) * streakMultiplier;
       const nextScore = Math.round(scoreRef.current + pointsDelta);
       scoreRef.current = nextScore;
@@ -258,7 +278,6 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
         prev.forEach((obs) => {
           const newY = obs.y + speedScale * (dt / 16) * (1 + obs.speedMultiplier);
 
-          // Handle Swerving Cars
           let newLane = obs.lane;
           let swerveTimer = obs.swerveTimer || 0;
           let swerveDir = obs.swerveDirection || 1;
@@ -278,7 +297,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
           // Check Collision
           if (!isInvincibleRef.current && checkCollision(playerLaneRef.current, 80, { ...obs, y: newY, lane: newLane })) {
             handleCollision(obs);
-            return; // obstacle destroyed on collision
+            return;
           }
 
           // Check Near Miss
@@ -321,14 +340,14 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
         return updated;
       });
 
-      // 5. Spawn Logic
-      if (now - lastSpawnTime >= config.spawnIntervalMs) {
-        lastSpawnTime = now;
+      // 5. Spawn Logic (Checked using lastSpawnTimeRef!)
+      if (now - lastSpawnTimeRef.current >= config.spawnIntervalMs) {
+        lastSpawnTimeRef.current = now;
 
         const newObs = validateAndGenerateObstacle({
-          existingObstacles: obstacles,
-          existingPowerups: powerups,
-          elapsedSeconds,
+          existingObstacles: obstaclesRef.current,
+          existingPowerups: powerupsRef.current,
+          elapsedSeconds: elapsedSecondsRef.current,
           difficulty: selectedDifficulty,
           randomFn: prngRef.current,
         });
@@ -339,8 +358,8 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
 
         if (prngRef.current() < config.powerupChance) {
           const newP = validateAndGeneratePowerup(
-            obstacles,
-            powerups,
+            obstaclesRef.current,
+            powerupsRef.current,
             livesRef.current,
             prngRef.current
           );
@@ -359,7 +378,7 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [isGameStarted, selectedDifficulty, selectedGameMode, isNitro, isDoublePoints, streakMultiplier, elapsedSeconds]);
+  }, [isGameStarted, selectedDifficulty, selectedGameMode, isNitro, isDoublePoints, streakMultiplier]);
 
   // Handle Collisions
   const handleCollision = (obs: RaceObstacle) => {
@@ -399,96 +418,100 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       return;
     }
 
-    // Direct Vehicle / Barrier Crash
-    playBeepSound(150, 0.4, soundEnabled);
-    triggerVibration([60, 40, 60], vibrationEnabled);
-    setScreenShake(true);
-    setTimeout(() => setScreenShake(false), 500);
-
+    // Normal Collision Hit
     setCollisionCount((c) => c + 1);
     setStreakCount(0);
     setStreakMultiplier(1);
+    setScreenShake(true);
+    setFeedbackText('💥 HASAR ALINDI!');
+    playBeepSound(150, 0.3, soundEnabled);
+    triggerVibration(60, vibrationEnabled);
 
-    // Invincibility window (1.5s)
+    // Temporary invincibility (1.2s)
     setIsInvincible(true);
     isInvincibleRef.current = true;
     setTimeout(() => {
       setIsInvincible(false);
       isInvincibleRef.current = false;
-    }, 1500);
+    }, 1200);
 
-    const nextLives = Math.max(0, livesRef.current - 1);
+    setTimeout(() => setScreenShake(false), 500);
+    setTimeout(() => setFeedbackText(null), 1200);
+
+    const nextLives = livesRef.current - 1;
     livesRef.current = nextLives;
     setLives(nextLives);
-
-    setFeedbackText('💥 ÇARPIŞMA! (-1 CAN)');
-    setTimeout(() => setFeedbackText(null), 1200);
 
     if (nextLives <= 0) {
       finishGame();
     }
   };
 
-  // Handle Near Miss Bonus
+  // Handle Near Miss
   const handleNearMiss = () => {
-    if (performance.now() - lastNearMissTimeRef.current < 400) return;
-    lastNearMissTimeRef.current = performance.now();
-
-    playFanfareSound(soundEnabled);
-    triggerVibration(20, vibrationEnabled);
-
     setNearMissCount((c) => c + 1);
 
     setStreakCount((prev) => {
-      const nextStreak = prev + 1;
-      const nextMult = Math.min(4, 1 + Math.floor(nextStreak / 3));
-      setStreakMultiplier(nextMult);
-      setBestStreak((b) => Math.max(b, nextMult));
-      return nextStreak;
+      const next = prev + 1;
+      setBestStreak((b) => Math.max(b, next));
+      if (next >= 5) setStreakMultiplier(3);
+      else if (next >= 3) setStreakMultiplier(2);
+      return next;
     });
 
-    const bonusPts = 25 * streakMultiplier * (isDoublePoints ? 2 : 1);
-    const newScore = scoreRef.current + bonusPts;
-    scoreRef.current = newScore;
-    setScore(newScore);
+    const nearBonus = 50 * streakMultiplier;
+    setScore((s) => {
+      const next = s + nearBonus;
+      scoreRef.current = next;
+      return next;
+    });
 
-    setFeedbackText(`🔥 YAKIN GEÇİŞ! (+${bonusPts} Puan) x${streakMultiplier}`);
+    setFeedbackText(`⚡ YAKIN GEÇİŞ! (+${nearBonus} PUAN)`);
+    playFanfareSound(soundEnabled);
+    triggerVibration([15, 20], vibrationEnabled);
     setTimeout(() => setFeedbackText(null), 1000);
   };
 
   // Handle Powerup Collection
-  const handlePowerupCollect = (p: RacePowerup) => {
+  const handlePowerupCollect = (powerup: RacePowerup) => {
+    setPowerupsCollected((c) => c + 1);
     playFanfareSound(soundEnabled);
     triggerVibration([20, 30], vibrationEnabled);
-    setPowerupsCollected((c) => c + 1);
 
-    if (p.type === 'shield') {
-      setHasShield(true);
-      setFeedbackText('🛡️ KALKAN GÜCÜ AKTİF!');
-    } else if (p.type === 'nitro') {
-      setIsNitro(true);
-      setFeedbackText('🚀 NİTRO HIZLANMASI!');
-      setTimeout(() => setIsNitro(false), 3000);
-    } else if (p.type === 'double-points') {
-      setIsDoublePoints(true);
-      setFeedbackText('⭐ 2X ÇİFT PUAN KAZANILDI!');
-      setTimeout(() => setIsDoublePoints(false), 5000);
-    } else if (p.type === 'repair') {
-      if (livesRef.current < 3) {
-        const next = livesRef.current + 1;
-        livesRef.current = next;
-        setLives(next);
-        setFeedbackText('🔧 TAMİR EDİLDİ! (+1 CAN)');
-      }
-    } else if (p.type === 'magnet') {
-      setIsMagnetActive(true);
-      setFeedbackText('🧲 MIKNATIS AKTİF!');
-      setTimeout(() => setIsMagnetActive(false), 5000);
+    switch (powerup.type) {
+      case 'shield':
+        setHasShield(true);
+        setFeedbackText('🛡️ KALKAN AKTİF!');
+        break;
+      case 'nitro':
+        setIsNitro(true);
+        setFeedbackText('🚀 NİTRO HIZLANMASI!');
+        setTimeout(() => setIsNitro(false), 4000);
+        break;
+      case 'double-points':
+        setIsDoublePoints(true);
+        setFeedbackText('⭐ 2X ÇİFT PUAN!');
+        setTimeout(() => setIsDoublePoints(false), 6000);
+        break;
+      case 'repair':
+        if (livesRef.current < 3) {
+          const next = livesRef.current + 1;
+          livesRef.current = next;
+          setLives(next);
+          setFeedbackText('❤️ EKSTRA CAN KAZANILDI!');
+        }
+        break;
+      case 'magnet':
+        setIsMagnetActive(true);
+        setFeedbackText('🧲 MIKNATIS AKTİF!');
+        setTimeout(() => setIsMagnetActive(false), 5000);
+        break;
     }
 
-    setTimeout(() => setFeedbackText(null), 1200);
+    setTimeout(() => setFeedbackText(null), 1500);
   };
 
+  // Finish Game & Record Score
   const finishGame = () => {
     if (isFinishedRef.current) return;
     isFinishedRef.current = true;
@@ -497,49 +520,51 @@ export const CarRaceGame: React.FC<CarRaceGameProps> = ({
       cancelAnimationFrame(animFrameRef.current);
     }
 
+    const finalDistance = distanceRef.current;
     const finalScore = scoreRef.current;
-    const finalDist = distanceRef.current;
 
-    onFinishGame([
+    const results = [
       {
         playerId: currentPlayer.id,
         score: finalScore,
         stats: {
-          'Kat Edilen Mesafe': `${finalDist} m`,
-          'En Yüksek Hız': `${maxSpeedKmh} km/sa`,
-          'Kaçılan Engel': avoidedCount,
-          'Çarpışma Sayısı': collisionCount,
-          'Yakın Geçiş Sayısı': nearMissCount,
-          'En Uzun Seri': `x${bestStreak}`,
+          'Kat Edilen Mesafe': `${finalDistance} m`,
+          'Toplam Skor': `${finalScore} Puan`,
+          'Maksimum Hız': `${maxSpeedKmh} km/h`,
+          'Yakın Geçiş': nearMissCount,
+          'Atlatılan Engel': avoidedCount,
+          'Çarpışma': collisionCount,
           'Toplanan Güçlendirme': powerupsCollected,
-          'Yarış Süresi': `${elapsedSeconds}s`,
+          'En İyi Seri': `${bestStreak}x`,
         },
       },
-    ]);
+    ];
+
+    onFinishGame(results);
   };
 
-  // Render Game Setup Screen if not started
+  // Setup / Mode Selection Menu Screen
   if (!isGameStarted) {
     return (
-      <div className="flex-1 flex flex-col justify-between h-full w-full bg-slate-950 text-white p-4 select-none overflow-y-auto space-y-4">
-        {/* Banner */}
-        <div className="text-center space-y-2 pt-2">
-          <div className="w-16 h-16 mx-auto rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl animate-bounce">
-            <Car className="w-8 h-8 text-cyan-400 stroke-[2.5]" />
+      <div className="relative flex-1 flex flex-col h-full w-full bg-slate-950 text-white select-none p-4 space-y-4 justify-center overflow-y-auto">
+        <div className="text-center space-y-2">
+          <div className="inline-flex p-3 rounded-3xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mb-2">
+            <Car className="w-10 h-10" />
           </div>
-
-          <span className="inline-block px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-cyan-400 font-extrabold text-[10px] uppercase tracking-wider">
-            Mini Araba Yarışı Kurulumu
-          </span>
-          <h2 className="text-2xl font-black text-white">Yarış Modunu ve Zorluğunu Seçin</h2>
+          <h1 className="text-2xl font-black tracking-wider uppercase text-white">
+            Mini Araba Yarışı
+          </h1>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto font-bold">
+            Otoyolda engellerden kaç, yakın geçişler yap ve rekor skora ulaş!
+          </p>
         </div>
 
         {/* Mode Selector */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3 max-w-md mx-auto w-full shadow-2xl">
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block text-center">
-            YARIŞ MODU
+            YARIŞ MODU SEÇİMİ
           </span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setSelectedGameMode('time-attack')}
               className={`py-4 px-3 rounded-2xl border font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 ${
