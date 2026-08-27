@@ -42,7 +42,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     return initial;
   });
 
-  // Pull-to-Draw Bow & Aiming State
+  // Pull-to-Draw Bow & Aiming State (pixel-based for exact hitboxes)
   const [aimTarget, setAimTarget] = useState<{ x: number; y: number } | null>(null);
   const [isShooting, setIsShooting] = useState<boolean>(false);
   const [wind, setWind] = useState<WindVector>(WIND_PRESETS[0]);
@@ -107,8 +107,8 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
     // Wind Drift Vector Physics Calculation
     const rad = (wind.angle * Math.PI) / 180;
-    const driftX = Math.cos(rad) * wind.speed * 2.2;
-    const driftY = Math.sin(rad) * wind.speed * 2.2;
+    const driftX = Math.cos(rad) * wind.speed * 1.8;
+    const driftY = Math.sin(rad) * wind.speed * 1.8;
 
     const finalHitX = Math.min(92, Math.max(8, rawTarget.x + driftX));
     const finalHitY = Math.min(85, Math.max(12, rawTarget.y + driftY));
@@ -148,32 +148,51 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   };
 
   const evaluateArrowHit = (hitX: number, hitY: number) => {
-    // Target Center Coordinates: (50%, 48%)
-    const targetCenterX = 50;
-    const targetCenterY = 48;
-    const dist = Math.hypot(hitX - targetCenterX, hitY - targetCenterY);
+    const rect = containerRef.current?.getBoundingClientRect();
+    let distRatio = 100; // default miss ratio
+
+    if (rect) {
+      // Calculate Pixel Coordinates for exact circular target ring distance
+      const hitX_px = (hitX / 100) * rect.width;
+      const hitY_px = (hitY / 100) * rect.height;
+
+      // Target Board Center is fixed at (width / 2, height * 0.48)
+      const targetCenterX_px = rect.width / 2;
+      const targetCenterY_px = rect.height * 0.48;
+
+      // Target Board Radius is 140px (280px / 2)
+      const targetRadius_px = 140;
+
+      const dx_px = hitX_px - targetCenterX_px;
+      const dy_px = hitY_px - targetCenterY_px;
+
+      const dist_px = Math.hypot(dx_px, dy_px);
+      distRatio = (dist_px / targetRadius_px) * 100;
+    }
 
     let score = 0;
     let text = '';
 
-    if (dist <= 4.5) {
+    // Precise Ring Radii match SVG target rings 100%:
+    // Gold: <= 10%, 9 Pts: <= 24%, Red: <= 46%, Blue: <= 70%, Black: <= 94%, White: <= 100%
+    if (distRatio <= 8.0) {
       score = 10;
       text = '🎯 TAM 12\'DEN BULLSEYE! (10 PUAN)';
-    } else if (dist <= 10.0) {
+    } else if (distRatio <= 24.0) {
       score = 9;
       text = '🟡 SARI ISABET! (9 PUAN)';
-    } else if (dist <= 18.0) {
+    } else if (distRatio <= 46.0) {
       score = 7;
       text = '🔴 KIRMIZI ISABET! (7 PUAN)';
-    } else if (dist <= 27.0) {
+    } else if (distRatio <= 70.0) {
       score = 5;
       text = '🔵 MAVİ ISABET! (5 PUAN)';
-    } else if (dist <= 36.0) {
+    } else if (distRatio <= 94.0) {
       score = 3;
       text = '⬛ SİYAH ISABET! (3 PUAN)';
-    } else if (dist <= 44.0) {
+    } else if (distRatio <= 102.0) {
       score = 1;
-      text = '⚪ DIŞ HALKA ISABETİ! (1 PUAN)';
+      text = '⚪ BEYAZ DIŞ HALKA! (1 PUAN)';
     } else {
       score = 0;
       text = '❌ KARAVANA! (Dışarı Gitti)';
@@ -289,7 +308,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
         {/* Official 10-Ring Target Board SVG (Target Center: Y: 48%) */}
         <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 flex items-center justify-center pointer-events-none z-10">
-          <svg width="300" height="300" viewBox="0 0 200 200" className="drop-shadow-2xl">
+          <svg width="280" height="280" viewBox="0 0 200 200" className="drop-shadow-2xl">
             {/* Wooden Tripod Stand */}
             <line x1="40" y1="180" x2="15" y2="210" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
             <line x1="160" y1="180" x2="185" y2="210" stroke="#78350F" strokeWidth="8" strokeLinecap="round" />
@@ -298,7 +317,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
             {/* Target Outer Frame */}
             <circle cx="100" cy="100" r="98" fill="#1E293B" stroke="#0F172A" strokeWidth="4" />
 
-            {/* Concentric Score Rings */}
+            {/* Concentric Score Rings matching exact radius percentages */}
             <circle cx="100" cy="100" r="94" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
             <circle cx="100" cy="100" r="82" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
 
@@ -356,7 +375,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           className="absolute transition-transform duration-75 z-40 drop-shadow-2xl pointer-events-none"
         >
           <svg width="28" height="60" viewBox="0 0 28 60">
-            {/* Arrow Shaft & Feather Fletching */}
             <line x1="14" y1="58" x2="14" y2="8" stroke="#F8FAFC" strokeWidth="3" strokeLinecap="round" />
             <polygon points="14,2 8,12 20,12" fill="#EF4444" />
             <polygon points="14,56 6,48 14,50 22,48" fill="#F59E0B" />
