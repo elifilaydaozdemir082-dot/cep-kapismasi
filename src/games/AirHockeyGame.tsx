@@ -26,12 +26,12 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
   // Paddles & Puck position state (% coords)
   const [p1Paddle, setP1Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 80 });
-  const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 15 });
+  const [p2Paddle, setP2Paddle] = useState<{ x: number; y: number }>({ x: 50, y: 12 });
   const [puck, setPuck] = useState<{ x: number; y: number; vx: number; vy: number }>({
     x: 50,
     y: 50,
     vx: 0.3,
-    vy: 0.5,
+    vy: 0.6,
   });
 
   const [impactSpark, setImpactSpark] = useState<{ x: number; y: number } | null>(null);
@@ -65,7 +65,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
 
       // Normalize pointer coordinates relative to arena container
       const x = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 5), 95);
-      const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 40), 95);
+      const y = Math.min(Math.max(((e.clientY - rect.top) / rect.height) * 100, 35), 95);
 
       setP1Paddle({ x, y });
     };
@@ -121,21 +121,21 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       const arenaW = rect ? rect.width : 360;
       const arenaH = rect ? rect.height : 520;
 
-      // 1. Bot AI Logic (Slower, Predictable, Leaves Goal Mouth Open when Outsmarted)
+      // 1. Bot AI Logic (Retreated further back at y=10..20 to leave top goal open for player shots!)
       if (mode === 'single' && !isBotFrozen) {
         setP2Paddle((prev) => {
           const targetX = puck.x;
-          const targetY = puck.y < 45 ? Math.min(25, Math.max(10, puck.y - 3)) : 14;
+          const targetY = puck.y < 40 ? Math.min(20, Math.max(8, puck.y - 2)) : 12;
 
           const dx = targetX - prev.x;
           const dy = targetY - prev.y;
 
-          // Slower Bot Movement
-          const speedX = 0.09;
-          const speedY = 0.07;
+          // Slower Bot Speed
+          const speedX = 0.08;
+          const speedY = 0.06;
 
-          const newX = Math.min(Math.max(prev.x + dx * speedX, 15), 85);
-          const newY = Math.min(Math.max(prev.y + dy * speedY, 8), 28);
+          const newX = Math.min(Math.max(prev.x + dx * speedX, 20), 80);
+          const newY = Math.min(Math.max(prev.y + dy * speedY, 6), 22);
 
           return { x: newX, y: newY };
         });
@@ -167,27 +167,27 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           triggerVibration([15, 25], vibrationEnabled);
         }
 
-        // Check Goal Mouths (Wide mouth width: 22% to 78%, Goal depth: y <= 6% or y >= 94%)
-        if (newY <= 6) {
-          if (newX >= 22 && newX <= 78) {
-            // Player 1 Goal! (Scored into Bot Goal at Top)
+        // TOP GOAL DETECTION ZONE (Puck enters Top Bot Goal at y <= 12%, width 15% to 85%)
+        if (newY <= 12) {
+          if (newX >= 15 && newX <= 85) {
+            // Player 1 SCORES A GOAL!
             handleGoal('P1');
             setIsRocketActive(false);
             return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: 0.5 };
           } else {
             vy = Math.abs(vy) * 0.95;
-            newY = 6;
+            newY = 12;
             playBeepSound(300, 0.05, soundEnabled);
           }
-        } else if (newY >= 94) {
-          if (newX >= 22 && newX <= 78) {
-            // Player 2 Goal! (Puck missed player defense and entered Bottom Goal)
+        } else if (newY >= 90) {
+          if (newX >= 15 && newX <= 85) {
+            // Player 2 Goal (Bottom Goal)
             handleGoal('P2');
             setIsRocketActive(false);
             return { x: 50, y: 50, vx: (Math.random() - 0.5) * 0.4, vy: -0.5 };
           } else {
             vy = -Math.abs(vy) * 0.95;
-            newY = 94;
+            newY = 90;
             playBeepSound(300, 0.05, soundEnabled);
           }
         }
@@ -213,8 +213,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           newX += (normalX * overlap / arenaW) * 100;
           newY += ((puckPxY - p1PxY) / distP1Px * overlap / arenaH) * 100;
 
-          // POWERFUL UPWARD SHUTTLE: Launches puck directly towards Top Bot Goal!
-          vy = -1.35 - Math.abs(vy) * 0.3;
+          // POWERFUL ROCKET SHOT UPWARDS: Launches puck straight into Top Bot Goal!
+          vy = -1.55 - Math.abs(vy) * 0.35;
           vx = normalX * 0.95;
 
           setImpactSpark({ x: newX, y: newY });
@@ -236,8 +236,8 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
           newX += (normalX * overlap / arenaW) * 100;
           newY += ((puckPxY - p2PxY) / distP2Px * overlap / arenaH) * 100;
 
-          vy = 0.7 + Math.abs(vy) * 0.15;
-          vx = normalX * 0.7;
+          vy = 0.65 + Math.abs(vy) * 0.15;
+          vx = normalX * 0.65;
 
           setImpactSpark({ x: newX, y: newY });
           setTimeout(() => setImpactSpark(null), 250);
@@ -267,7 +267,7 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       x: prev.x,
       y: Math.min(prev.y, 75),
       vx: (Math.random() - 0.5) * 0.8,
-      vy: -1.9,
+      vy: -2.2,
     }));
 
     playFanfareSound(soundEnabled);
@@ -303,13 +303,13 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
       const next = p1ScoreRef.current + 1;
       p1ScoreRef.current = next;
       setP1Score(next);
-      setGoalAnnouncement(`🔥 HARİKA GOL! SİZ KAZANDINIZ (+1 PUAN)`);
+      setGoalAnnouncement(`🔥 MÜTHİŞ GOL! SEN KAZANDIN (+1 PUAN)`);
       if (next >= 5) finishGame();
     } else {
       const next = p2ScoreRef.current + 1;
       p2ScoreRef.current = next;
       setP2Score(next);
-      setGoalAnnouncement(`❌ DEFANS KAÇTI! (Bot Sayı Kazandı)`);
+      setGoalAnnouncement(`❌ BOT SAYI KAZANDI!`);
       if (next >= 5) finishGame();
     }
 
@@ -359,18 +359,18 @@ export const AirHockeyGame: React.FC<AirHockeyGameProps> = ({
         )}
 
         {/* Top Goal Mouth (Bot Goal) */}
-        <div className="absolute top-0 inset-x-[22%] h-4 bg-emerald-500/90 border-b-2 border-emerald-400 rounded-b-xl flex items-center justify-center z-10 shadow-[0_0_15px_#10B981]">
-          <span className="text-[10px] font-black text-white tracking-widest uppercase">BOT KALESİ (HEDEF)</span>
+        <div className="absolute top-0 inset-x-[15%] h-5 bg-emerald-500/90 border-b-2 border-emerald-400 rounded-b-xl flex items-center justify-center z-10 shadow-[0_0_20px_#10B981]">
+          <span className="text-[10px] font-black text-white tracking-widest uppercase">🎯 BOT KALESİ (BURAYA GOL AT!)</span>
         </div>
 
         {/* Bottom Goal Mouth (Player 1 Goal) */}
-        <div className="absolute bottom-0 inset-x-[22%] h-4 bg-cyan-500/90 border-t-2 border-cyan-400 rounded-t-xl flex items-center justify-center z-10 shadow-[0_0_15px_#06B6D4]">
-          <span className="text-[10px] font-black text-white tracking-widest uppercase">KENDİ KALEN</span>
+        <div className="absolute bottom-0 inset-x-[15%] h-5 bg-cyan-500/90 border-t-2 border-cyan-400 rounded-t-xl flex items-center justify-center z-10 shadow-[0_0_20px_#06B6D4]">
+          <span className="text-[10px] font-black text-white tracking-widest uppercase">🛡️ KENDİ KALEN</span>
         </div>
 
         {/* Active Protective Shield Wall Visual */}
         {isShieldActive && (
-          <div className="absolute bottom-5 inset-x-[8%] h-3.5 bg-cyan-400 border-2 border-cyan-100 rounded-full shadow-[0_0_25px_#38BDF8] animate-pulse z-30 flex items-center justify-center">
+          <div className="absolute bottom-6 inset-x-[5%] h-3.5 bg-cyan-400 border-2 border-cyan-100 rounded-full shadow-[0_0_25px_#38BDF8] animate-pulse z-30 flex items-center justify-center">
             <span className="text-[10px] font-black text-slate-950 tracking-wider">🛡️ KALKAN DUVAR AKTİF ({shieldTimer}s)</span>
           </div>
         )}
