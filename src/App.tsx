@@ -40,6 +40,12 @@ import { TrueFalsePlayScreen } from './screens/quiz/TrueFalsePlayScreen';
 // New Game: Kutunu Seç
 import { BoxDealGame } from './games/BoxDealGame';
 
+// First Social Party Game Pack
+import { CharadesGame } from './games/CharadesGame';
+import { PassTheBombGame } from './games/PassTheBombGame';
+import { OrderingGame } from './games/OrderingGame';
+import { EstimationGame } from './games/EstimationGame';
+
 import type { DifficultyLevel, GameMode, GameSettings, GameType, MedalType, Player, ScreenType, SinglePlayerRecord } from './types/game';
 import type { QuizCategoryId, QuizGameMode } from './types/quiz';
 import { storageService } from './services/storage';
@@ -497,6 +503,43 @@ export function App() {
               vibrationEnabled={settings.vibrationEnabled}
             />
           )}
+          {/* SOCIAL GAMES SINGLE PLAYER */}
+          {selectedGame === 'charades' && (
+            <CharadesGame
+              mode="single"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
+          {selectedGame === 'pass-the-bomb' && (
+            <PassTheBombGame
+              mode="single"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
+          {selectedGame === 'order-up' && (
+            <OrderingGame
+              mode="single"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
+          {selectedGame === 'estimation' && (
+            <EstimationGame
+              mode="single"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
         </>
       )}
 
@@ -686,12 +729,39 @@ export function App() {
               vibrationEnabled={settings.vibrationEnabled}
             />
           )}
-          {selectedGame === 'quiz-true-false' && (
-            <TrueFalsePlayScreen
+          {/* SOCIAL GAMES MULTIPLAYER */}
+          {selectedGame === 'charades' && (
+            <CharadesGame
               mode="multi"
-              categoryId={quizConfig.categoryId}
               players={players}
-              onFinishQuiz={handleGenericGameFinish}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
+          {selectedGame === 'pass-the-bomb' && (
+            <PassTheBombGame
+              mode="multi"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
+          {selectedGame === 'order-up' && (
+            <OrderingGame
+              mode="multi"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
+              soundEnabled={settings.soundEnabled}
+              vibrationEnabled={settings.vibrationEnabled}
+            />
+          )}
+          {selectedGame === 'estimation' && (
+            <EstimationGame
+              mode="multi"
+              players={players}
+              onFinishGame={handleGenericGameFinish}
               soundEnabled={settings.soundEnabled}
               vibrationEnabled={settings.vibrationEnabled}
             />

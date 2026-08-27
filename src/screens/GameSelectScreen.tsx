@@ -17,6 +17,8 @@ import {
   Ban,
   Link as LinkIcon,
   HelpCircle,
+  Film,
+  Flame,
   Play,
   Gift,
 } from 'lucide-react';
@@ -39,6 +41,7 @@ export const GameSelectScreen: React.FC<GameSelectScreenProps> = ({
 
   const categories: { id: GameCategory | 'all'; label: string }[] = [
     { id: 'all', label: 'Tümü' },
+    { id: 'sosyal', label: 'Sosyal Oyunlar' },
     { id: 'sans', label: 'Şans ve Strateji' },
     { id: 'bilgi', label: 'Bilgi Yarışması' },
     { id: 'kelime', label: 'Kelime Oyunları' },
@@ -55,6 +58,10 @@ export const GameSelectScreen: React.FC<GameSelectScreenProps> = ({
 
   const renderGameIcon = (iconName: string) => {
     switch (iconName) {
+      case 'Film':
+        return <Film className="w-7 h-7 stroke-[2.5]" aria-hidden="true" />;
+      case 'Flame':
+        return <Flame className="w-7 h-7 stroke-[2.5]" aria-hidden="true" />;
       case 'Gift':
         return <Gift className="w-7 h-7 stroke-[2.5]" aria-hidden="true" />;
       case 'Car':

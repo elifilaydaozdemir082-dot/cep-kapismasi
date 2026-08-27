@@ -16,7 +16,7 @@ export type DifficultyLevel = 'easy' | 'normal' | 'hard';
 
 export type MedalType = 'none' | 'bronz' | 'gümüş' | 'altın';
 
-export type GameCategory = 'refleks' | 'spor' | 'yaris' | 'zeka' | 'kelime' | 'bilgi' | 'sans';
+export type GameCategory = 'refleks' | 'spor' | 'yaris' | 'zeka' | 'kelime' | 'bilgi' | 'sans' | 'sosyal';
 
 export type GameType = 
   | 'tap-rush'         // Hedef Avı
@@ -38,8 +38,12 @@ export type GameType =
   | 'word-chain'       // Kelime Zinciri
   | 'quiz-classic'     // Bilgi Yarışması: Klasik
   | 'quiz-fast-finger' // Bilgi Yarışması: Hızlı Parmak
-  | 'quiz-true-false' // Bilgi Yarışması: Doğru mu Yanlış mı?
-  | 'box-deal';        // Kutunu Seç
+  | 'quiz-true-false'  // Bilgi Yarışması: Doğru mu Yanlış mı?
+  | 'box-deal'         // Kutunu Seç
+  | 'charades'         // Sessiz Sinema
+  | 'pass-the-bomb'    // Bomba Kimde?
+  | 'order-up'         // Doğru Sıraya Koy
+  | 'estimation';      // Hangisi Daha Yakın?
 
 export type WordCategory =
   | 'gunluk'
