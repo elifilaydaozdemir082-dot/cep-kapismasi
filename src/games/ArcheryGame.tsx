@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Target, Trophy, Zap, Eye } from 'lucide-react';
+import { Target, Trophy, Zap, Eye, Flame } from 'lucide-react';
 import type { Player } from '../types/game';
 import { playBeepSound, playFanfareSound, playTapSound, triggerVibration } from '../utils/audio';
 
@@ -11,8 +11,17 @@ interface ArcheryGameProps {
   vibrationEnabled: boolean;
 }
 
-// Progressive Shot Distances (Shot 1: 30m, Shot 2: 50m, Shot 3: 70m, Shot 4: 90m, Shot 5: 100m)
-const SHOT_DISTANCES = [30, 50, 70, 90, 100];
+interface ConfettiParticle {
+  id: number;
+  x: number; // %
+  y: number; // %
+  color: string;
+  size: number;
+  vx: number;
+  vy: number;
+}
+
+const CONFETTI_COLORS = ['#F59E0B', '#EC4899', '#06B6D4', '#10B981', '#8B5CF6', '#F43F5E', '#FACC15'];
 
 export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   mode,
@@ -23,7 +32,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 }) => {
   const [currentPlayerIdx, setCurrentPlayerIdx] = useState<number>(0);
   const [currentShot, setCurrentShot] = useState<number>(1);
-  const totalShots = 5;
+  const totalShots = 15;
 
   const [playerScores, setPlayerScores] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
@@ -35,10 +44,11 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   const [aimSvg, setAimSvg] = useState<{ x: number; y: number } | null>(null);
   const [isShooting, setIsShooting] = useState<boolean>(false);
 
-  // Scope & Arrow Flight State
+  // Arrow & Confetti State
   const [arrowSvg, setArrowSvg] = useState<{ x: number; y: number }>({ x: 100, y: 240 });
   const [arrowScale, setArrowScale] = useState<number>(1.8);
-  const [stuckArrows, setStuckArrows] = useState<{ x: number; y: number; id: number }[]>([]);
+  const [stuckArrows, setStuckArrows] = useState<{ x: number; y: number; isFire: boolean; id: number }[]>([]);
+  const [confetti, setConfetti] = useState<ConfettiParticle[]>([]);
 
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -54,10 +64,19 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
   }, [players]);
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
-  const targetDistance = SHOT_DISTANCES[currentShot - 1] || 30;
 
-  // Scale target visual size based on progressive distance (30m is 100%, 100m is 45%)
-  const distanceTargetScale = Math.max(0.42, 1.15 - (targetDistance / 100) * 0.7);
+  // Distance: Level 1-5: 30m, Level 6-10: 50m, Level 11-15: 70m
+  const getTargetDistance = (shot: number) => {
+    if (shot <= 5) return 30;
+    if (shot <= 10) return 50;
+    return 70;
+  };
+
+  const targetDistance = getTargetDistance(currentShot);
+  const isFireArrow = currentShot >= 5; // Fireball arrows active from Level 5+
+
+  // Target Visual Scale (30m: 100%, 50m: 78%, 70m: 60%)
+  const distanceTargetScale = targetDistance === 30 ? 1.0 : targetDistance === 50 ? 0.78 : 0.60;
 
   // Pointer position normalized to SVG coordinates (0..200)
   const getSvgCoords = (e: React.PointerEvent) => {
@@ -96,7 +115,6 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     setAimSvg(null);
     setIsShooting(true);
 
-    // Launch Direct Flight Animation (Zero Wind Drift!)
     launchArrowFlight(hitSvgX, hitSvgY);
   };
 
@@ -130,44 +148,70 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
     animFrameRef.current = requestAnimationFrame(animate);
   };
 
+  const triggerConfettiExplosion = () => {
+    const newParticles: ConfettiParticle[] = Array.from({ length: 35 }).map((_, i) => ({
+      id: Date.now() + i,
+      x: 50 + (Math.random() * 20 - 10),
+      y: 45 + (Math.random() * 20 - 10),
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      size: Math.random() * 8 + 6,
+      vx: (Math.random() - 0.5) * 16,
+      vy: (Math.random() - 0.7) * 16,
+    }));
+    setConfetti(newParticles);
+
+    setTimeout(() => {
+      setConfetti([]);
+    }, 1800);
+  };
+
   const evaluateArrowHit = (hitX: number, hitY: number) => {
     const targetCenterX = 100;
     const targetCenterY = 100;
     const radius = Math.hypot(hitX - targetCenterX, hitY - targetCenterY);
 
-    let score = 0;
+    let baseScore = 0;
     let text = '';
 
-    // Radii matching target SVG 100%
     if (radius <= 10.0) {
-      score = 10;
-      text = `🎯 MESAFE ${targetDistance}m: TAM 12'DEN BULLSEYE! (10 PUAN)`;
+      baseScore = 10;
+      text = `🎯 SEVİYE ${currentShot} (${targetDistance}m): TAM 12'DEN BULLSEYE!`;
     } else if (radius <= 16.0) {
-      score = 9;
-      text = `🟡 MESAFE ${targetDistance}m: SARI ISABET! (9 PUAN)`;
+      baseScore = 9;
+      text = `🟡 SEVİYE ${currentShot} (${targetDistance}m): SARI ISABET!`;
     } else if (radius <= 34.0) {
-      score = 7;
-      text = `🔴 MESAFE ${targetDistance}m: KIRMIZI ISABET! (7 PUAN)`;
+      baseScore = 7;
+      text = `🔴 SEVİYE ${currentShot} (${targetDistance}m): KIRMIZI ISABET!`;
     } else if (radius <= 58.0) {
-      score = 5;
-      text = `🔵 MESAFE ${targetDistance}m: MAVİ ISABET! (5 PUAN)`;
+      baseScore = 5;
+      text = `🔵 SEVİYE ${currentShot} (${targetDistance}m): MAVİ ISABET!`;
     } else if (radius <= 82.0) {
-      score = 3;
-      text = `⬛ MESAFE ${targetDistance}m: SİYAH ISABET! (3 PUAN)`;
+      baseScore = 3;
+      text = `⬛ SEVİYE ${currentShot} (${targetDistance}m): SİYAH ISABET!`;
     } else if (radius <= 98.0) {
-      score = 1;
-      text = `⚪ MESAFE ${targetDistance}m: BEYAZ DIŞ HALKA! (1 PUAN)`;
+      baseScore = 1;
+      text = `⚪ SEVİYE ${currentShot} (${targetDistance}m): BEYAZ DIŞ HALKA!`;
     } else {
-      score = 0;
-      text = `❌ MESAFE ${targetDistance}m: KARAVANA! (Dışarı Gitti)`;
+      baseScore = 0;
+      text = `❌ SEVİYE ${currentShot} (${targetDistance}m): KARAVANA!`;
     }
 
-    setFeedback(text);
-    setStuckArrows((prev) => [...prev, { x: hitX, y: hitY, id: Date.now() }]);
+    // Fireball Bonus Multiplier for Level 5+
+    const score = isFireArrow && baseScore > 0 ? Math.round(baseScore * 1.5) : baseScore;
+    const feedbackText = isFireArrow && baseScore > 0 ? `🔥 ${text} (+${score} PUAN BONUSU!)` : `${text} (+${score} PUAN)`;
+
+    setFeedback(feedbackText);
+    setStuckArrows((prev) => [...prev, { x: hitX, y: hitY, isFire: isFireArrow, id: Date.now() }]);
 
     if (score > 0) {
       playFanfareSound(soundEnabled);
       triggerVibration([25, 35], vibrationEnabled);
+
+      // Trigger Confetti Explosion on Bullseye OR Level 5+ Fire hits!
+      if (baseScore === 10 || isFireArrow) {
+        triggerConfettiExplosion();
+      }
+
       const newScore = (playerScoresRef.current[currentPlayer.id] || 0) + score;
       playerScoresRef.current[currentPlayer.id] = newScore;
       setPlayerScores((prev) => ({
@@ -201,7 +245,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           finishGame();
         }
       }
-    }, 1500);
+    }, 1600);
   };
 
   const finishGame = () => {
@@ -213,7 +257,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
       score: playerScoresRef.current[p.id] || 0,
       stats: {
         'Toplam Okçuluk Skoru': playerScoresRef.current[p.id] || 0,
-        'Maksimum Mesafe': `${SHOT_DISTANCES[SHOT_DISTANCES.length - 1]} Metre`,
+        'Tamamlanan Seviye': `${totalShots} Seviye`,
       },
     }));
 
@@ -228,10 +272,16 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
           <div className="p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
             <Target className="w-5 h-5" aria-hidden="true" />
           </div>
-          <span className="font-black text-sm tracking-wide text-white">DÜRBÜNLÜ MESAFE OKÇULUĞU</span>
+          <span className="font-black text-sm tracking-wide text-white">15 SEVİYE DÜRBÜNLÜ OKÇULUK</span>
         </div>
 
         <div className="flex items-center gap-3 text-xs font-black">
+          {isFireArrow && (
+            <span className="text-amber-300 bg-rose-500/20 border border-rose-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse shadow-[0_0_10px_#EF4444]">
+              <Flame className="w-3.5 h-3.5 text-rose-500 fill-current" /> 🔥 ALEVLİ OK
+            </span>
+          )}
+
           <span className="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1">
             📏 Mesafe: {targetDistance}m
           </span>
@@ -242,7 +292,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
             <Trophy className="w-3.5 h-3.5" /> Skor: {playerScores[currentPlayer.id] || 0}
           </span>
           <span className="text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5" /> Atış: {currentShot} / {totalShots}
+            <Zap className="w-3.5 h-3.5" /> Seviye: {currentShot} / {totalShots}
           </span>
         </div>
       </div>
@@ -260,6 +310,21 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
             {feedback}
           </div>
         )}
+
+        {/* Bursting Celebration Confetti Particles */}
+        {confetti.map((c) => (
+          <div
+            key={c.id}
+            style={{
+              left: `${c.x}%`,
+              top: `${c.y}%`,
+              width: `${c.size}px`,
+              height: `${c.size}px`,
+              backgroundColor: c.color,
+            }}
+            className="absolute rounded-sm pointer-events-none z-50 animate-ping"
+          />
+        ))}
 
         {/* Distant Target Board (Scales down dynamically with distance) */}
         <div
@@ -303,18 +368,18 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
             <circle cx="100" cy="100" r="10" fill="#FBBF24" stroke="#D97706" strokeWidth="1" />
             <circle cx="100" cy="100" r="2" fill="#020617" />
 
-            {/* Stuck Arrows */}
+            {/* Stuck Arrows Rendered Inside SVG Canvas */}
             {stuckArrows.map((arrow) => (
               <g key={arrow.id} transform={`translate(${arrow.x}, ${arrow.y})`}>
-                <circle cx="0" cy="0" r="3.5" fill="#EF4444" stroke="#FFFFFF" strokeWidth="1.2" />
+                <circle cx="0" cy="0" r="3.5" fill={arrow.isFire ? '#EF4444' : '#F59E0B'} stroke="#FFFFFF" strokeWidth="1.2" />
                 <line x1="0" y1="0" x2="8" y2="-12" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
               </g>
             ))}
 
-            {/* Flying Arrow */}
+            {/* Flying Arrow inside SVG Canvas (Normal vs Fire Arrow) */}
             <g transform={`translate(${arrowSvg.x}, ${arrowSvg.y}) scale(${arrowScale})`}>
-              <line x1="0" y1="12" x2="0" y2="-12" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
-              <polygon points="0,-16 -4,-8 4,-8" fill="#EF4444" />
+              <line x1="0" y1="12" x2="0" y2="-12" stroke={isFireArrow ? '#EF4444' : '#FFFFFF'} strokeWidth="3" strokeLinecap="round" />
+              <polygon points="0,-16 -4,-8 4,-8" fill={isFireArrow ? '#FDE047' : '#EF4444'} />
               <polygon points="0,14 -4,8 0,9 4,8" fill="#F59E0B" />
             </g>
           </svg>
@@ -354,7 +419,8 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
 
               {/* Scope Lens HUD Distance Info */}
               <div className="absolute bottom-3 inset-x-0 text-center z-40">
-                <span className="text-[10px] font-black bg-slate-950/90 border border-amber-400/40 text-amber-300 px-3 py-1 rounded-full shadow-lg">
+                <span className="text-[10px] font-black bg-slate-950/90 border border-amber-400/40 text-amber-300 px-3 py-1 rounded-full shadow-lg flex items-center justify-center gap-1">
+                  {isFireArrow ? <Flame className="w-3 h-3 text-rose-500 fill-current animate-pulse" /> : null}
                   🔭 DÜRBÜN BÜYÜTMESİ (MESAFE: {targetDistance}m)
                 </span>
               </div>
@@ -365,7 +431,7 @@ export const ArcheryGame: React.FC<ArcheryGameProps> = ({
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-emerald-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-emerald-300 font-black flex items-center justify-center gap-1.5">
-            <Eye className="w-4 h-4 text-emerald-400" /> Dürbün merceğini açmak için hedefe basılı tutun ve bıraktığınız yere oku %100 isabet ettirin!
+            <Eye className="w-4 h-4 text-emerald-400" /> Dürbün merceği ile 15 seviyeli mesafe turnuvasında alevli oklar atın!
           </p>
         </div>
       </div>
