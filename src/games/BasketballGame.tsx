@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Target, Trophy, Zap, ArrowUpRight } from 'lucide-react';
+import { Target, Trophy, Zap, ArrowUpRight, Flame } from 'lucide-react';
 import type { DifficultyLevel, Player } from '../types/game';
 import { playBeepSound, playFanfareSound, triggerVibration } from '../utils/audio';
 
@@ -37,15 +37,42 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   const [lastShotFeedback, setLastShotFeedback] = useState<string | null>(null);
   const [netRipple, setNetRipple] = useState<boolean>(false);
 
+  // Advanced Features: Moving Hoop & Fireball Combo
+  const [hoopOffsetX, setHoopOffsetX] = useState<number>(0);
+  const [streakCount, setStreakCount] = useState<number>(0);
+  const [isFireball, setIsFireball] = useState<boolean>(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const isFinishedRef = useRef<boolean>(false);
   const playerScoresRef = useRef<Record<string, number>>({});
+  const hoopDirectionRef = useRef<number>(1);
 
   useEffect(() => {
     const initial: Record<string, number> = {};
     players.forEach((p) => (initial[p.id] = 0));
     playerScoresRef.current = initial;
   }, [players]);
+
+  // Moving Hoop Animation Loop (Oscillates X between -16% and +16%)
+  useEffect(() => {
+    if (isFinishedRef.current) return;
+
+    const interval = setInterval(() => {
+      setHoopOffsetX((prev) => {
+        let next = prev + hoopDirectionRef.current * 0.45;
+        if (next > 16) {
+          next = 16;
+          hoopDirectionRef.current = -1;
+        } else if (next < -16) {
+          next = -16;
+          hoopDirectionRef.current = 1;
+        }
+        return next;
+      });
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const currentPlayer = players[currentPlayerIdx] || players[0];
 
@@ -81,7 +108,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
     setIsShooting(true);
 
     // Animate ball arc towards tapped target
-    setBallRotation(720);
+    setBallRotation(1080);
     setBallScale(0.65);
     setBallPos({ x: finalTarget.x, y: finalTarget.y });
 
@@ -91,33 +118,52 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
   };
 
   const evaluateShot = (targetX: number, targetY: number) => {
-    // Hoop Rim Center is synchronized at X: 50%, Y: 28%
-    const hoopX = 50;
+    // Dynamic Moving Hoop Rim Center (50 + hoopOffsetX, Y: 28%)
+    const currentHoopX = 50 + hoopOffsetX;
     const hoopY = 28;
-    const distToHoop = Math.hypot(targetX - hoopX, targetY - hoopY);
+    const distToHoop = Math.hypot(targetX - currentHoopX, targetY - hoopY);
 
     let pts = 0;
     let feedback = '';
 
-    if (distToHoop <= 5.5) {
-      pts = 3;
-      feedback = '🔥 SWISH! TEMİZ BASKET! (+3 PUAN)';
+    const multiplier = streakCount >= 2 ? 2 : 1;
+
+    if (distToHoop <= 6.0) {
+      pts = 3 * multiplier;
       setNetRipple(true);
-    } else if (distToHoop <= 10.5) {
-      pts = 2;
-      feedback = '🏀 BASKET! (+2 PUAN)';
+      const nextStreak = streakCount + 1;
+      setStreakCount(nextStreak);
+      if (nextStreak >= 2) setIsFireball(true);
+
+      feedback =
+        nextStreak >= 2
+          ? `🔥 ALEVLİ TOP COMBO! (+${pts} PUAN)`
+          : '🔥 SWISH! TEMİZ BASKET! (+3 PUAN)';
+    } else if (distToHoop <= 11.5) {
+      pts = 2 * multiplier;
       setNetRipple(true);
-    } else if (distToHoop <= 16.5) {
+      const nextStreak = streakCount + 1;
+      setStreakCount(nextStreak);
+      if (nextStreak >= 2) setIsFireball(true);
+
+      feedback =
+        nextStreak >= 2
+          ? `🔥 ALEVLİ BASKET! (+${pts} PUAN)`
+          : '🏀 BASKET! (+2 PUAN)';
+    } else if (distToHoop <= 17.0) {
       feedback = '💥 PANYADAN/ÇEMBERDEN SEKTİ!';
-      // Bounce off effect
+      setStreakCount(0);
+      setIsFireball(false);
       setBallPos((prev) => ({ x: prev.x > 50 ? prev.x + 8 : prev.x - 8, y: prev.y + 10 }));
     } else {
       feedback = '❌ HAVA TOPU! (İsabet Sağlanamadı)';
+      setStreakCount(0);
+      setIsFireball(false);
     }
 
     if (pts > 0) {
       playFanfareSound(soundEnabled);
-      triggerVibration([20, 30], vibrationEnabled);
+      triggerVibration([25, 35], vibrationEnabled);
       const newScore = (playerScoresRef.current[currentPlayer.id] || 0) + pts;
       playerScoresRef.current[currentPlayer.id] = newScore;
       setPlayerScores((prev) => ({
@@ -170,6 +216,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         stats: {
           'Toplam Puan': score,
           'Atılan Şut': totalShots,
+          'Alevli Seri': `${streakCount} Kombo`,
         },
       };
     });
@@ -189,6 +236,13 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         </div>
 
         <div className="flex items-center gap-3 text-xs font-black">
+          {/* Fireball Streak Badge */}
+          {isFireball && (
+            <span className="text-amber-400 bg-rose-500/20 border border-rose-500/40 px-3 py-1 rounded-full flex items-center gap-1 animate-pulse shadow-[0_0_10px_#EF4444]">
+              <Flame className="w-4 h-4 text-rose-500 fill-current" /> 🔥 {streakCount}X KOMBO
+            </span>
+          )}
+
           <span style={{ color: currentPlayer.color }} className="bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-800">
             👤 {currentPlayer.name}
           </span>
@@ -233,8 +287,15 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           </div>
         )}
 
-        {/* 3D Glass Backboard, Red LED & Swish Net SVG (Hoop Rim Center aligned at X: 50%, Y: 28%) */}
-        <div className="absolute top-[2%] inset-x-0 h-48 flex justify-center items-start z-10 pointer-events-none">
+        {/* Dynamic Moving 3D Backboard & Rim SVG */}
+        <div
+          style={{
+            left: `${50 + hoopOffsetX}%`,
+            top: '2%',
+            transform: 'translateX(-50%)',
+          }}
+          className="absolute h-48 w-60 flex justify-center items-start z-10 pointer-events-none transition-all duration-75"
+        >
           <svg width="240" height="170" viewBox="0 0 240 170" className="drop-shadow-2xl">
             <defs>
               <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -246,12 +307,18 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
             {/* Backboard Stand Support */}
             <rect x="114" y="0" width="12" height="24" fill="#334155" />
 
+            {/* Digital Shot Clock & Combo Display */}
+            <rect x="90" y="2" width="60" height="14" rx="3" fill="#020617" stroke="#EF4444" strokeWidth="1" />
+            <text x="120" y="12" fill="#EF4444" fontSize="10" fontWeight="900" textAnchor="middle">
+              {isFireball ? '🔥 2X' : '24s'}
+            </text>
+
             {/* Glass Backboard Plate */}
-            <rect x="25" y="14" width="190" height="110" rx="10" fill="url(#glassGrad)" stroke="#F8FAFC" strokeWidth="5" opacity="0.95" />
-            <rect x="80" y="50" width="80" height="55" rx="4" fill="none" stroke="#EF4444" strokeWidth="4" />
+            <rect x="25" y="18" width="190" height="110" rx="10" fill="url(#glassGrad)" stroke="#F8FAFC" strokeWidth="5" opacity="0.95" />
+            <rect x="80" y="54" width="80" height="55" rx="4" fill="none" stroke="#EF4444" strokeWidth="4" />
 
             {/* Red LED Boundary Frame */}
-            <rect x="28" y="17" width="184" height="104" rx="8" fill="none" stroke="#DC2626" strokeWidth="2" opacity="0.8" />
+            <rect x="28" y="21" width="184" height="104" rx="8" fill="none" stroke="#DC2626" strokeWidth="2" opacity="0.8" />
 
             {/* Metallic Rim & Net Swish */}
             <g className={netRipple ? 'animate-bounce' : ''}>
@@ -276,30 +343,31 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
           </svg>
         </div>
 
-        {/* Green Aiming Target Marker & Arc Line */}
+        {/* Green Aiming Target Marker */}
         {aimTarget && (
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-30">
-            {/* Target Crosshair Circle */}
-            <circle cx={`${aimTarget.x}%`} cy={`${aimTarget.y}%`} r="18" fill="none" stroke="#34D399" strokeWidth="3" strokeDasharray="4 4" className="animate-spin-slow" />
-            <circle cx={`${aimTarget.x}%`} cy={`${aimTarget.y}%`} r="6" fill="#34D399" />
+            <circle cx={`${aimTarget.x}%`} cy={`${aimTarget.y}%`} r="18" fill="none" stroke={isFireball ? '#EF4444' : '#34D399'} strokeWidth="3" strokeDasharray="4 4" className="animate-spin-slow" />
+            <circle cx={`${aimTarget.x}%`} cy={`${aimTarget.y}%`} r="6" fill={isFireball ? '#EF4444' : '#34D399'} />
           </svg>
         )}
 
-        {/* 8-Seam Basketball SVG */}
+        {/* 8-Seam Basketball (Normal or Fireball Glow SVG) */}
         <div
           style={{
             left: `${ballPos.x}%`,
             top: `${ballPos.y}%`,
             transform: `translate(-50%, -50%) scale(${ballScale}) rotate(${ballRotation}deg)`,
           }}
-          className="absolute w-16 h-16 transition-all duration-500 z-20 drop-shadow-2xl pointer-events-none"
+          className={`absolute w-16 h-16 transition-all duration-500 z-20 drop-shadow-2xl pointer-events-none ${
+            isFireball ? 'drop-shadow-[0_0_20px_#EF4444]' : ''
+          }`}
         >
           <svg width="64" height="64" viewBox="0 0 100 100">
             <defs>
               <radialGradient id="basketballGrad" cx="35%" cy="35%" r="65%">
-                <stop offset="0%" stopColor="#FB923C" />
-                <stop offset="60%" stopColor="#EA580C" />
-                <stop offset="100%" stopColor="#9A3412" />
+                <stop offset="0%" stopColor={isFireball ? '#FDE047' : '#FB923C'} />
+                <stop offset="60%" stopColor={isFireball ? '#EF4444' : '#EA580C'} />
+                <stop offset="100%" stopColor={isFireball ? '#7F1D1D' : '#9A3412'} />
               </radialGradient>
             </defs>
 
@@ -317,7 +385,7 @@ export const BasketballGame: React.FC<BasketballGameProps> = ({
         {/* Instruction Footer */}
         <div className="relative z-40 text-center py-2.5 mx-4 mb-3 bg-slate-950/80 border border-amber-500/30 rounded-2xl backdrop-blur shadow-2xl">
           <p className="text-xs text-amber-300 font-black flex items-center justify-center gap-1.5">
-            <ArrowUpRight className="w-4 h-4 text-amber-400" /> Potaya dokunup şutunuzu çekin!
+            <ArrowUpRight className="w-4 h-4 text-amber-400" /> Hareketli potaya dokunup alevli kombo basketler atın!
           </p>
         </div>
       </div>
